@@ -85,10 +85,27 @@ bun dev
 
 Opens at `http://localhost:5173`. The SQLite database is created automatically at `data/portfolio.db` on first run.
 
-For AI chat, create a `.env` file:
+**AI chat (dev mode):** Create a `.env` file in the project root:
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 ```
+Bun loads this automatically. Get a key at [console.anthropic.com](https://console.anthropic.com).
+
+---
+
+## AI chat (installed Electron app)
+
+The installed app doesn't load `.env` files — set the key as a Windows environment variable instead:
+
+1. Open **Start → search "environment variables" → Edit the system environment variables**
+2. Click **Environment Variables…** → under **User variables**, click **New**
+3. Variable name: `ANTHROPIC_API_KEY`
+4. Variable value: your key (`sk-ant-...`)
+5. Click OK → **fully close and reopen Portfolio Tracker**
+
+The AI chat panel will work immediately after restart. Without the key set, the chat button is still visible but returns an error message.
+
+To get an API key: [console.anthropic.com](https://console.anthropic.com) → sign up → API Keys → Create key. Usage is pay-as-you-go; the chat uses Claude Haiku which costs roughly $0.001 per conversation.
 
 ---
 
