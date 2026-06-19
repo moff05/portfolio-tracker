@@ -1,6 +1,7 @@
-import { app, BrowserWindow, utilityProcess } from 'electron';
+import { app, BrowserWindow, utilityProcess, dialog } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { autoUpdater } from 'electron-updater';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const isDev = !app.isPackaged;
@@ -81,10 +82,37 @@ function createWindow() {
   });
 }
 
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater] error:', err.message);
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog
+      .showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: 'A new version of Portfolio Tracker has been downloaded.',
+        detail: 'Restart now to apply the update, or it will install automatically when you close the app.',
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+  });
+
+  autoUpdater.checkForUpdatesAndNotify();
+}
+
 app.whenReady().then(async () => {
   try {
     await startServer();
     createWindow();
+    if (!isDev) setupAutoUpdater();
   } catch (err) {
     console.error('[main] Failed to start server:', err);
     app.quit();
