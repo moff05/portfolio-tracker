@@ -37,6 +37,7 @@ function startServer() {
         PORT: String(PORT),
         DIST_PATH: getDistPath(),
         DB_PATH: getDbPath(),
+        USER_DATA_PATH: app.getPath('userData'),
       },
     });
 

@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const YH_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
@@ -11,11 +13,56 @@ let _yhCookie: string | null = null;
 let _yhCrumb: string | null = null;
 let _yhPromise: Promise<void> | null = null;
 
+// Persist session to disk so subsequent app launches skip the 2-step bootstrap.
+const SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const SESSION_PATH = process.env.USER_DATA_PATH
+  ? join(process.env.USER_DATA_PATH, "yahoo-session.json")
+  : null;
+
+async function loadYahooSession(): Promise<boolean> {
+  if (!SESSION_PATH) return false;
+  try {
+    const raw = await readFile(SESSION_PATH, "utf8");
+    const { cookie, crumb, expiresAt } = JSON.parse(raw);
+    if (typeof cookie !== "string" || typeof crumb !== "string") return false;
+    if (Date.now() > expiresAt) return false;
+    _yhCookie = cookie;
+    _yhCrumb = crumb;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function saveYahooSession(): Promise<void> {
+  if (!SESSION_PATH || !_yhCookie || !_yhCrumb) return;
+  try {
+    await writeFile(
+      SESSION_PATH,
+      JSON.stringify({ cookie: _yhCookie, crumb: _yhCrumb, expiresAt: Date.now() + SESSION_TTL_MS }),
+      "utf8",
+    );
+  } catch {
+    // non-fatal
+  }
+}
+
+function clearYahooSession(): void {
+  _yhCookie = null;
+  _yhCrumb = null;
+  if (SESSION_PATH) writeFile(SESSION_PATH, "{}", "utf8").catch(() => {});
+}
+
 async function ensureYahooSession(): Promise<void> {
   if (_yhCookie && _yhCrumb) return;
   if (_yhPromise) return _yhPromise;
   _yhPromise = (async () => {
     try {
+      // Try disk cache before hitting the network.
+      if (await loadYahooSession()) {
+        console.log("[yahoo] session restored from disk");
+        return;
+      }
       // Step 1: hit fc.yahoo.com to get a Set-Cookie (A1/A3) we can echo back.
       const seed = await fetch("https://fc.yahoo.com/", {
         headers: { "User-Agent": YH_UA, Accept: "*/*" },
@@ -38,10 +85,10 @@ async function ensureYahooSession(): Promise<void> {
       const crumb = (await crumbRes.text()).trim();
       if (!crumb || crumb.length > 64) throw new Error(`bad crumb: ${crumb.slice(0, 40)}`);
       _yhCrumb = crumb;
+      await saveYahooSession();
     } catch (e) {
       console.error("[yahoo] session bootstrap failed", (e as Error).message);
-      _yhCookie = null;
-      _yhCrumb = null;
+      clearYahooSession();
     } finally {
       _yhPromise = null;
     }
@@ -70,9 +117,8 @@ export async function yahooChart(symbol: string, period1: number, period2: numbe
   const url = _yhCrumb ? `${base}&crumb=${encodeURIComponent(_yhCrumb)}` : base;
   let res = await fetch(url, { headers: yahooHeaders() });
   if (res.status === 401 || res.status === 403) {
-    // Cookie/crumb expired — refresh once and retry.
-    _yhCookie = null;
-    _yhCrumb = null;
+    // Cookie/crumb expired — clear cache and refresh once before retrying.
+    clearYahooSession();
     await ensureYahooSession();
     const retry = _yhCrumb ? `${base}&crumb=${encodeURIComponent(_yhCrumb)}` : base;
     res = await fetch(retry, { headers: yahooHeaders() });
@@ -147,8 +193,7 @@ export const getQuoteMetrics = createServerFn({ method: "POST" })
     try {
       let res = await fetch(url, { headers: yahooHeaders() });
       if (res.status === 401 || res.status === 403) {
-        _yhCookie = null;
-        _yhCrumb = null;
+        clearYahooSession();
         await ensureYahooSession();
         const retry = _yhCrumb ? `${base}&crumb=${encodeURIComponent(_yhCrumb)}` : base;
         res = await fetch(retry, { headers: yahooHeaders() });

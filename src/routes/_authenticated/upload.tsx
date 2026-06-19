@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { parsePortfolioExcel } from "@/lib/excel-import";
+import { parseOFXFile } from "@/lib/ofx-import";
 import { bulkInsertTransactions, type TxnInput } from "@/lib/transactions.functions";
 import { bulkUpsertMappings } from "@/lib/symbol-mappings.functions";
 import { CUSIP_SEED, isCusip } from "@/lib/symbol-resolver";
@@ -439,6 +440,30 @@ function UploadPage() {
           return;
         }
       } catch { /* fall through to generic */ }
+    }
+
+    // OFX (v1 SGML or v2 XML) — supported by Fidelity, Schwab, Vanguard, IBKR, etc.
+    if (ext === "ofx" || ext === "qfx") {
+      try {
+        const text = await file.text();
+        const parsed = parseOFXFile(text, accountName.trim() || undefined);
+        if (parsed.rows.length > 0) {
+          setRows(parsed.rows);
+          setErrors(parsed.errors);
+          setSkippedCount(0);
+          setStage("preview");
+          setReading(false);
+          toast.success(`Parsed ${parsed.rows.length} transactions from OFX — review and import.`);
+          return;
+        }
+        toast.error("No transactions found in this OFX file.");
+        setReading(false);
+        return;
+      } catch (err: any) {
+        toast.error("Failed to parse OFX: " + (err?.message ?? "unknown error"));
+        setReading(false);
+        return;
+      }
     }
 
     // Generic path: read headers + raw rows, show mapping step

@@ -17,11 +17,13 @@ export function usePortfolio(asOfDate?: string) {
   const txnsQ = useQuery({
     queryKey: ["transactions", account ?? "all"],
     queryFn: () => listTransactions({ data: { account } }),
+    staleTime: Infinity,
   });
 
   const mappingsQ = useQuery({
     queryKey: ["symbol_mappings"],
     queryFn: () => listMappings(),
+    staleTime: Infinity,
   });
 
   const rawTxns = (txnsQ.data ?? []) as unknown as Transaction[];
