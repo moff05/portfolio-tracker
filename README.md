@@ -92,13 +92,23 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ---
 
-## Building the Electron installer (Windows)
+## Building the Electron installer
 
+Run this command on the target platform — Electron apps must be built on the same OS they'll run on.
+
+**Windows** — outputs `release/Portfolio Tracker Setup 1.0.0.exe`:
 ```bash
 bun run electron:build
 ```
 
-Outputs a self-contained Windows installer to `release/Portfolio Tracker Setup 1.0.0.exe`. No Bun or Node required on the target machine — install and run.
+**macOS** — outputs `release/Portfolio Tracker-1.0.0.dmg`:
+```bash
+bun run electron:build
+```
+
+Drag the `.dmg` to Applications and open. macOS will warn "unidentified developer" since the app isn't Apple-signed — right-click → Open → Open anyway to bypass it.
+
+No Bun or Node required on the target machine after installation.
 
 ---
 
