@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 
 const YH_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36";
@@ -14,15 +12,22 @@ let _yhCrumb: string | null = null;
 let _yhPromise: Promise<void> | null = null;
 
 // Persist session to disk so subsequent app launches skip the 2-step bootstrap.
+// Dynamic imports keep node: built-ins out of the browser bundle (server-fn files
+// are processed by both the client and server Vite builds).
 const SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const SESSION_PATH = process.env.USER_DATA_PATH
-  ? join(process.env.USER_DATA_PATH, "yahoo-session.json")
-  : null;
+
+function getSessionPath(): string | null {
+  const userData = process.env.USER_DATA_PATH;
+  if (!userData) return null;
+  return `${userData}/yahoo-session.json`;
+}
 
 async function loadYahooSession(): Promise<boolean> {
-  if (!SESSION_PATH) return false;
+  const sessionPath = getSessionPath();
+  if (!sessionPath) return false;
   try {
-    const raw = await readFile(SESSION_PATH, "utf8");
+    const { readFile } = await import("node:fs/promises");
+    const raw = await readFile(sessionPath, "utf8");
     const { cookie, crumb, expiresAt } = JSON.parse(raw);
     if (typeof cookie !== "string" || typeof crumb !== "string") return false;
     if (Date.now() > expiresAt) return false;
@@ -35,10 +40,12 @@ async function loadYahooSession(): Promise<boolean> {
 }
 
 async function saveYahooSession(): Promise<void> {
-  if (!SESSION_PATH || !_yhCookie || !_yhCrumb) return;
+  const sessionPath = getSessionPath();
+  if (!sessionPath || !_yhCookie || !_yhCrumb) return;
   try {
+    const { writeFile } = await import("node:fs/promises");
     await writeFile(
-      SESSION_PATH,
+      sessionPath,
       JSON.stringify({ cookie: _yhCookie, crumb: _yhCrumb, expiresAt: Date.now() + SESSION_TTL_MS }),
       "utf8",
     );
@@ -50,7 +57,10 @@ async function saveYahooSession(): Promise<void> {
 function clearYahooSession(): void {
   _yhCookie = null;
   _yhCrumb = null;
-  if (SESSION_PATH) writeFile(SESSION_PATH, "{}", "utf8").catch(() => {});
+  const sessionPath = getSessionPath();
+  if (sessionPath) {
+    import("node:fs/promises").then(({ writeFile }) => writeFile(sessionPath, "{}", "utf8")).catch(() => {});
+  }
 }
 
 async function ensureYahooSession(): Promise<void> {
