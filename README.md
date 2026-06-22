@@ -95,13 +95,32 @@ Bun loads this automatically. Get a key at [console.anthropic.com](https://conso
 
 ## AI chat (installed Electron app)
 
-The installed app doesn't load `.env` files — set the key as a Windows environment variable instead:
+The installed app doesn't load `.env` files — set the key as an environment variable at the OS level instead.
+
+**Windows**
 
 1. Open **Start → search "environment variables" → Edit the system environment variables**
 2. Click **Environment Variables…** → under **User variables**, click **New**
 3. Variable name: `ANTHROPIC_API_KEY`
 4. Variable value: your key (`sk-ant-...`)
 5. Click OK → **fully close and reopen Portfolio Tracker**
+
+**macOS**
+
+Add the key to your shell profile so it's available to all apps launched from the terminal:
+
+```bash
+echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Then launch Portfolio Tracker from the same terminal session:
+
+```bash
+open -a "Portfolio Tracker"
+```
+
+> **Why terminal?** macOS apps opened from the Dock or Finder don't inherit shell environment variables. Launching from a terminal session that has sourced `~/.zshrc` passes the key through correctly. Alternatively, add the export to `~/.zshenv` (runs for all sessions, including GUI apps) if you want Dock launches to work too.
 
 The AI chat panel will work immediately after restart. Without the key set, the chat button is still visible but returns an error message.
 
