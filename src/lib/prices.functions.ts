@@ -156,25 +156,44 @@ export const getQuotes = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const out: Record<string, { price: number; previousClose: number; currency: string }> = {};
-    await Promise.all(
-      data.symbols.map(async (sym) => {
-        const yhSym = sym.replace(".", "-"); // BRK.B → BRK-B for Yahoo Finance
-        try {
-          const now = Math.floor(Date.now() / 1000);
-          const wkAgo = now - 60 * 60 * 24 * 7;
-          const r = await yahooChart(yhSym, wkAgo, now);
-          const meta = r.meta;
-          out[sym.toUpperCase()] = {
-            price: Number(meta.regularMarketPrice ?? 0),
-            previousClose: Number(meta.chartPreviousClose ?? meta.previousClose ?? 0),
-            currency: meta.currency ?? "USD",
-          };
-        } catch (e) {
-          console.error(`[getQuotes] ${sym}`, (e as Error).message);
-          out[sym.toUpperCase()] = { price: 0, previousClose: 0, currency: "USD" };
-        }
-      }),
-    );
+    if (data.symbols.length === 0) return out;
+
+    await ensureYahooSession();
+
+    const yhToOrig = new Map<string, string>();
+    for (const sym of data.symbols) yhToOrig.set(sym.replace(".", "-").toUpperCase(), sym);
+    const yhSyms = [...yhToOrig.keys()];
+
+    const base = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${yhSyms.join(",")}&fields=regularMarketPrice,regularMarketPreviousClose,currency`;
+    const url = _yhCrumb ? `${base}&crumb=${encodeURIComponent(_yhCrumb)}` : base;
+
+    try {
+      let res = await fetch(url, { headers: yahooHeaders() });
+      if (res.status === 401 || res.status === 403) {
+        clearYahooSession();
+        await ensureYahooSession();
+        const retry = _yhCrumb ? `${base}&crumb=${encodeURIComponent(_yhCrumb)}` : base;
+        res = await fetch(retry, { headers: yahooHeaders() });
+      }
+      if (!res.ok) throw new Error(`Yahoo v7/quote ${res.status}`);
+
+      const json = (await res.json()) as any;
+      const results: any[] = json?.quoteResponse?.result ?? [];
+      for (const r of results) {
+        const origSym = yhToOrig.get(r.symbol?.toUpperCase()) ?? r.symbol;
+        out[origSym.toUpperCase()] = {
+          price: Number(r.regularMarketPrice ?? 0),
+          previousClose: Number(r.regularMarketPreviousClose ?? 0),
+          currency: r.currency ?? "USD",
+        };
+      }
+    } catch (e) {
+      console.error("[getQuotes]", (e as Error).message);
+    }
+
+    for (const sym of data.symbols) {
+      if (!out[sym.toUpperCase()]) out[sym.toUpperCase()] = { price: 0, previousClose: 0, currency: "USD" };
+    }
     return out;
   });
 

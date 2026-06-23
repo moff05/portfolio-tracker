@@ -1,7 +1,8 @@
 import { app, BrowserWindow, utilityProcess, dialog } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoUpdater } from 'electron-updater';
+import updaterPkg from 'electron-updater';
+const { autoUpdater } = updaterPkg;
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const isDev = !app.isPackaged;
