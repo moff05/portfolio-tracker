@@ -44,7 +44,8 @@
     "publish": {
       "provider": "github",
       "owner": "moff05",
-      "repo": "portfolio-tracker"
+      "repo": "portfolio-tracker",
+      "releaseType": "release"
     }
   },
   "dependencies": {
