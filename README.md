@@ -132,12 +132,12 @@ To get an API key: [console.anthropic.com](https://console.anthropic.com) → si
 
 Run this command on the target platform — Electron apps must be built on the same OS they'll run on.
 
-**Windows** — outputs `release/Portfolio Tracker Setup 1.0.0.exe`:
+**Windows** — outputs `release/Portfolio Tracker Setup <version>.exe`:
 ```bash
 bun run electron:build
 ```
 
-**macOS** — outputs `release/Portfolio Tracker-1.0.0.dmg`:
+**macOS** — outputs `release/Portfolio Tracker-<version>.dmg`:
 ```bash
 bun run electron:build
 ```
