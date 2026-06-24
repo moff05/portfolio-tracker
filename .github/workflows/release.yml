@@ -24,7 +24,22 @@ jobs:
       - name: Build Vite
         run: bun run build
 
-      - name: Package and publish installer
+      - name: Package installer
+        run: bunx electron-builder --publish never
+
+      - name: Publish to GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bunx electron-builder --publish always
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          # Create release (ok if already exists from a re-run)
+          gh release create "$TAG" --title "$TAG" --generate-notes || true
+          # Upload every artifact individually — --clobber overwrites if already there
+          for f in release/*.exe release/*.blockmap release/latest.yml; do
+            [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber && echo "Uploaded $f"
+          done
+          # Verify latest.yml made it — auto-updater won't work without it
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep -q 'latest.yml' \
+            && echo "latest.yml confirmed in release" \
+            || { echo "ERROR: latest.yml missing from release — auto-updater will not work"; exit 1; }
