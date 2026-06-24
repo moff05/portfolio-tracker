@@ -1,4 +1,4 @@
-import { app, BrowserWindow, utilityProcess, dialog } from 'electron';
+import { app, BrowserWindow, utilityProcess, Notification } from 'electron';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import updaterPkg from 'electron-updater';
@@ -84,6 +84,10 @@ function createWindow() {
   });
 }
 
+function notify(title, body) {
+  if (Notification.isSupported()) new Notification({ title, body }).show();
+}
+
 function setupAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -92,19 +96,17 @@ function setupAutoUpdater() {
     console.error('[updater] error:', err.message);
   });
 
+  autoUpdater.on('update-available', (info) => {
+    notify('Update downloading…', `v${info.version} will install automatically when you close the app.`);
+  });
+
+  autoUpdater.on('download-progress', (p) => {
+    if (mainWindow) mainWindow.setProgressBar(p.percent / 100);
+  });
+
   autoUpdater.on('update-downloaded', () => {
-    dialog
-      .showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: 'A new version of Portfolio Tracker has been downloaded.',
-        detail: 'Restart now to apply the update, or it will install automatically when you close the app.',
-        buttons: ['Restart Now', 'Later'],
-        defaultId: 0,
-      })
-      .then(({ response }) => {
-        if (response === 0) autoUpdater.quitAndInstall();
-      });
+    if (mainWindow) mainWindow.setProgressBar(-1);
+    notify('Update ready', 'Close and reopen Portfolio Tracker to finish installing.');
   });
 
   autoUpdater.checkForUpdatesAndNotify();
