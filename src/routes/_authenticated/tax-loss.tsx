@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useMemo, useState, Fragment } from "react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { buildLots } from "@/lib/tax-lots";
 import { SortHead, useSortable, sortRows } from "@/components/SortHead";
@@ -19,15 +19,35 @@ const ST_RATE = 0.37;
 
 type LotMethod = "FIFO" | "HIFO";
 
+function fmtDate(iso: string) {
+  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+  });
+}
+
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function TaxLossPage() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [method, setMethod] = useState<LotMethod>("FIFO");
+  const today = localDateStr();
+  const [method, setMethod] = useState<LotMethod>("HIFO");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpand(symbol: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(symbol) ? next.delete(symbol) : next.add(symbol);
+      return next;
+    });
+  }
   const { snapshot, txns, isLoading } = usePortfolio(today);
 
   const thirtyDaysAgo = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
 
   const recentBuySymbols = useMemo(() => {
@@ -160,6 +180,7 @@ function TaxLossPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8" />
                 <SortHead label="Symbol"           sortKey="symbol"         sort={sort} onSort={handleSort} />
                 <SortHead label="Market Value"     sortKey="marketValue"    sort={sort} onSort={handleSort} className="text-right" />
                 <SortHead label="Unrealized Loss"  sortKey="unrealizedPL"   sort={sort} onSort={handleSort} className="text-right" />
@@ -173,37 +194,105 @@ function TaxLossPage() {
             <TableBody>
               {displayed.map((h) => {
                 const washSale = recentBuySymbols.has(h.symbol);
-                const savings = h.savings;
+                const lots = holdingsBySymbol[h.symbol] ?? [];
+                const isExpanded = expanded.has(h.symbol);
+                const hasLots = lots.length > 0;
                 return (
-                  <TableRow key={h.symbol}>
-                    <TableCell className="font-medium text-foreground">{h.symbol}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(h.marketValue)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold text-loss">
-                      {formatMoney(h.unrealizedPL)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-loss">
-                      {h.ltLoss < 0 ? formatMoney(h.ltLoss) : <span className="text-muted-foreground/40">—</span>}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-loss">
-                      {h.stLoss < 0 ? formatMoney(h.stLoss) : <span className="text-muted-foreground/40">—</span>}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-loss">
-                      {h.unrealizedPLPct.toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-gain">
-                      {formatMoney(savings)}
-                    </TableCell>
-                    <TableCell>
-                      {washSale ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
-                          <AlertTriangle className="w-3 h-3" />
-                          Recent buy
+                  <Fragment key={h.symbol}>
+                    <TableRow
+                      className={cn(isExpanded && "bg-muted/20", hasLots && "cursor-pointer")}
+                      onClick={() => hasLots && toggleExpand(h.symbol)}
+                    >
+                      <TableCell className="w-8 pr-0">
+                        {hasLots && (
+                          <ChevronRight className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        <span className="flex items-center gap-1">
+                          {h.symbol}
+                          {lots.length > 1 && (
+                            <span className="text-[10px] text-muted-foreground/60 font-normal">{lots.length} lots</span>
+                          )}
                         </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/40">Clear</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(h.marketValue)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold text-loss">
+                        {formatMoney(h.unrealizedPL)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-loss">
+                        {h.ltLoss < 0 ? formatMoney(h.ltLoss) : <span className="text-muted-foreground/40">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-loss">
+                        {h.stLoss < 0 ? formatMoney(h.stLoss) : <span className="text-muted-foreground/40">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-loss">
+                        {h.unrealizedPLPct.toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-gain">
+                        {formatMoney(h.savings)}
+                      </TableCell>
+                      <TableCell>
+                        {washSale ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                            <AlertTriangle className="w-3 h-3" />
+                            Recent buy
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/40">Clear</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && hasLots && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={9} className="p-0">
+                          <div className="mx-4 mb-3 mt-1 rounded-md border border-border/60 bg-muted/30 overflow-hidden">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b border-border/60 text-muted-foreground/70">
+                                  <th className="text-left px-3 py-2 font-medium">Acquired</th>
+                                  <th className="text-right px-3 py-2 font-medium">Qty</th>
+                                  <th className="text-right px-3 py-2 font-medium">Cost/Share</th>
+                                  <th className="text-right px-3 py-2 font-medium">Total Cost</th>
+                                  <th className="text-right px-3 py-2 font-medium">Mkt Value</th>
+                                  <th className="text-right px-3 py-2 font-medium">Lot G/L</th>
+                                  <th className="px-3 py-2 font-medium">Term</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {[...lots].sort((a, b) => b.costPerShare - a.costPerShare).map((lot) => {
+                                  const mv   = h.marketPrice * lot.qtyRemaining;
+                                  const gain = mv - lot.totalCost;
+                                  return (
+                                    <tr key={lot.id} className="border-b border-border/40 last:border-0">
+                                      <td className="px-3 py-1.5 text-foreground">{fmtDate(lot.acquiredDate)}</td>
+                                      <td className="px-3 py-1.5 tabular-nums text-right">
+                                        {lot.qtyRemaining.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                                      </td>
+                                      <td className="px-3 py-1.5 tabular-nums text-right">{formatMoney(lot.costPerShare)}</td>
+                                      <td className="px-3 py-1.5 tabular-nums text-right">{formatMoney(lot.totalCost)}</td>
+                                      <td className="px-3 py-1.5 tabular-nums text-right">{h.marketPrice > 0 ? formatMoney(mv) : "—"}</td>
+                                      <td className={cn("px-3 py-1.5 tabular-nums text-right font-medium", gain >= 0 ? "text-gain" : "text-loss")}>
+                                        {h.marketPrice > 0 ? formatMoney(gain) : "—"}
+                                      </td>
+                                      <td className="px-3 py-1.5">
+                                        <span className={cn(
+                                          "inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                          lot.holdingPeriod === "long" ? "bg-gain/10 text-gain" : "bg-amber-500/10 text-amber-600",
+                                        )}>
+                                          {lot.holdingPeriod === "long" ? "Long" : "Short"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
                 );
               })}
             </TableBody>

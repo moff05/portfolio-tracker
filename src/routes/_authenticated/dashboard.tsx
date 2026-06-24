@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo, useRef, useLayoutEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { AsOfDatePicker } from "@/components/AsOfDatePicker";
 import { Card } from "@/components/ui/card";
-import { formatMoney } from "@/lib/portfolio";
-import { getSector, getAssetClass } from "@/lib/sector";
+import { buildSnapshot, formatMoney, isoAddDays } from "@/lib/portfolio";
+import { getAssetClass, getSector } from "@/lib/sector";
 import { getNavHistory } from "@/lib/performance.functions";
+import { getHistoricalCloses } from "@/lib/prices.functions";
 import { useAccountFilter } from "@/lib/account-filter";
+import { SPY_SECTOR_WEIGHTS, QQQ_SECTOR_WEIGHTS } from "@/lib/index-sector-weights";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -15,25 +17,38 @@ import {
 } from "recharts";
 import { PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Transaction } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Portfolio Tracker" }] }),
   component: Dashboard,
 });
 
-// ─── Single ranked palette ───────────────────────────────────────────────────
-// Priority order: RED → GREEN → BLUE → then supporting colors.
-// Same hex everywhere — never substitute.
 const PALETTE = [
-  "#E41C38", // 1. crimson  — brand red
-  "#10b981", // 2. emerald  — gain / positive
-  "#0ea5e9", // 3. sky      — your data / blue
-  "#f59e0b", // 4. amber
-  "#8b5cf6", // 5. violet
-  "#06b6d4", // 6. cyan
-  "#ec4899", // 7. pink
-  "#f97316", // 8. orange
+  "#E41C38", "#10b981", "#0ea5e9", "#f59e0b",
+  "#8b5cf6", "#06b6d4", "#ec4899", "#f97316",
 ];
+
+// Fixed colors per GICS sector — vibrant, visually distinct, consistent across all charts
+const SECTOR_COLORS: Record<string, string> = {
+  "Technology":     "#3b82f6", // blue-500
+  "Financials":     "#10b981", // emerald-500
+  "Healthcare":     "#a855f7", // purple-500
+  "Industrials":    "#f59e0b", // amber-500
+  "Comm. Services": "#ec4899", // pink-500
+  "Cons. Disc.":    "#f97316", // orange-500
+  "Cons. Staples":  "#84cc16", // lime-400
+  "Energy":         "#ef4444", // red-500
+  "Materials":      "#06b6d4", // cyan-500
+  "Real Estate":    "#8b5cf6", // violet-500
+  "Utilities":      "#14b8a6", // teal-500
+  "Bond Funds":     "#64748b", // slate-500
+  "Funds":          "#f59e0b", // amber-500
+  "Other":          "#94a3b8", // slate-400
+};
+function sectorColor(name: string, fallbackIdx: number): string {
+  return SECTOR_COLORS[name] ?? PALETTE[fallbackIdx % PALETTE.length];
+}
 
 const TICK = { fontSize: 11, fill: "currentColor" };
 const RADIAN = Math.PI / 180;
@@ -41,33 +56,31 @@ const RADIAN = Math.PI / 180;
 const TOOLTIP_STYLE = {
   background: "#fff",
   border: "1px solid var(--color-border)",
-  borderRadius: 8,
-  fontSize: 12,
-  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+  borderRadius: 10,
+  fontSize: 13,
+  fontWeight: 500,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.13)",
+  padding: "8px 14px",
 };
 
-function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
-  const [width, setWidth] = useState(999);
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    setWidth(ref.current.offsetWidth);
-    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, []);
-  return width;
-}
+// Expand abbreviated GICS sector names for display
+const SECTOR_FULL: Record<string, string> = {
+  "Comm. Services": "Communication Services",
+  "Cons. Disc.":    "Consumer Discretionary",
+  "Cons. Staples":  "Consumer Staples",
+};
+function sectorLabel(s: string) { return SECTOR_FULL[s] ?? s; }
 
-// Treemap color scale — 8 vivid levels, no near-black extremes
+
 function plBgFg(pct: number): { bg: string; fg: string } {
-  if (pct >= 10) return { bg: "#047857", fg: "#d1fae5" }; // emerald-700
-  if (pct >= 5)  return { bg: "#10b981", fg: "#ecfdf5" }; // emerald-500
-  if (pct >= 2)  return { bg: "#6ee7b7", fg: "#064e3b" }; // emerald-300
-  if (pct >= 0)  return { bg: "#d1fae5", fg: "#065f46" }; // emerald-100
-  if (pct >= -2) return { bg: "#fee2e2", fg: "#991b1b" }; // red-100
-  if (pct >= -5) return { bg: "#fca5a5", fg: "#7f1d1d" }; // red-300
-  if (pct >= -10)return { bg: "#ef4444", fg: "#fff"    }; // red-500
-  return           { bg: "#b91c1c",      fg: "#fff"    }; // red-700
+  if (pct >= 10)  return { bg: "#047857", fg: "#d1fae5" };
+  if (pct >= 5)   return { bg: "#10b981", fg: "#ecfdf5" };
+  if (pct >= 2)   return { bg: "#6ee7b7", fg: "#064e3b" };
+  if (pct >= 0)   return { bg: "#d1fae5", fg: "#065f46" };
+  if (pct >= -2)  return { bg: "#fee2e2", fg: "#991b1b" };
+  if (pct >= -5)  return { bg: "#fca5a5", fg: "#7f1d1d" };
+  if (pct >= -10) return { bg: "#ef4444", fg: "#fff"    };
+  return            { bg: "#b91c1c",      fg: "#fff"    };
 }
 
 function TreemapContent(props: any) {
@@ -112,12 +125,10 @@ function TreemapTooltip({ active, payload }: TooltipProps<number, string>) {
   );
 }
 
-// Pie slice label — draws its own connector line so Recharts never renders a dangling
-// line for sub-threshold slices (which happens when labelLine is a prop but label returns null).
 function PieSliceLabel({ cx, cy, midAngle, outerRadius, name, portfolioPct }: any) {
   if ((portfolioPct ?? 0) < 2.0) return null;
-  const labelR = outerRadius + 22;
-  const lineR  = outerRadius + 5;
+  const labelR = outerRadius + 24;
+  const lineR  = outerRadius + 6;
   const lx = cx + labelR * Math.cos(-midAngle * RADIAN);
   const ly = cy + labelR * Math.sin(-midAngle * RADIAN);
   const sx = cx + lineR  * Math.cos(-midAngle * RADIAN);
@@ -132,8 +143,9 @@ function PieSliceLabel({ cx, cy, midAngle, outerRadius, name, portfolioPct }: an
   );
 }
 
+// Tooltip: "Jun 24, 2026" — unambiguous, shows the actual day
 function fmtNavDate(iso: string) {
-  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
 function NavTooltip({ active, payload, label }: any) {
@@ -146,161 +158,434 @@ function NavTooltip({ active, payload, label }: any) {
   );
 }
 
-type NavPeriod = "1D" | "1W" | "6M" | "YTD" | "1Y" | "3Y" | "5Y" | "10Y" | "All";
+type NavPeriod = "1D" | "1W" | "6M" | "YTD" | "1Y" | "3Y" | "5Y" | "Max";
 
-function filterNavSeries(series: { date: string; value: number }[], period: NavPeriod) {
-  if (period === "All" || series.length === 0) return series;
-  const today = new Date().toISOString().slice(0, 10);
-  const cutoff =
-    period === "1D"  ? new Date(Date.now() -          86400_000).toISOString().slice(0, 10) :
-    period === "1W"  ? new Date(Date.now() -      7 * 86400_000).toISOString().slice(0, 10) :
-    period === "6M"  ? new Date(Date.now() -    180 * 86400_000).toISOString().slice(0, 10) :
-    period === "YTD" ? `${today.slice(0, 4)}-01-01` :
-    period === "1Y"  ? new Date(Date.now() -    365 * 86400_000).toISOString().slice(0, 10) :
-    period === "3Y"  ? new Date(Date.now() -  3*365 * 86400_000).toISOString().slice(0, 10) :
-    period === "5Y"  ? new Date(Date.now() -  5*365 * 86400_000).toISOString().slice(0, 10) :
-                       new Date(Date.now() - 10*365 * 86400_000).toISOString().slice(0, 10);
+// Uses local date components to avoid UTC-offset date shifts
+function localDateStr(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+// asOfDate = the "end" date for the period; defaults to today when not provided
+function getNavCutoff(period: NavPeriod, asOfDate?: string): string {
+  const refMs = asOfDate ? new Date(asOfDate + "T12:00:00").getTime() : Date.now();
+  switch (period) {
+    case "1D":  return localDateStr(new Date(refMs -          86400_000));
+    case "1W":  return localDateStr(new Date(refMs -      7 * 86400_000));
+    case "6M":  return localDateStr(new Date(refMs -    180 * 86400_000));
+    case "YTD": {
+      const y = asOfDate ? parseInt(asOfDate.slice(0, 4)) : new Date().getFullYear();
+      return `${y}-01-01`;
+    }
+    case "1Y":  return localDateStr(new Date(refMs -    365 * 86400_000));
+    case "3Y":  return localDateStr(new Date(refMs -  3*365 * 86400_000));
+    case "5Y":  return localDateStr(new Date(refMs -  5*365 * 86400_000));
+    default:    return ""; // "Max"
+  }
+}
+
+function filterNavSeries(series: { date: string; value: number }[], period: NavPeriod, asOfDate?: string) {
+  if (period === "Max" || series.length === 0) return series;
+  const cutoff = getNavCutoff(period, asOfDate);
   return series.filter((p) => p.date >= cutoff);
 }
 
-function NavChart({ series }: { series: { date: string; value: number }[] }) {
-  const [period, setPeriod] = useState<NavPeriod>("1Y");
-  const periods: NavPeriod[] = ["1D", "1W", "6M", "YTD", "1Y", "3Y", "5Y", "10Y", "All"];
-  const data = useMemo(() => filterNavSeries(series, period), [series, period]);
-  if (data.length < 2) return null;
+// Collapse daily nav data to one point per month (last value in each month).
+// Fixes the hybrid date-spine problem: monthly old data + daily recent data causes
+// Recharts to give the recent year 365x more horizontal space than earlier years.
+function resampleNavToMonthly(data: { date: string; value: number }[]): { date: string; value: number }[] {
+  const months = new Map<string, { date: string; value: number }>();
+  for (const p of data) {
+    months.set(p.date.slice(0, 7), p); // last point per month wins (data is sorted asc)
+  }
+  return Array.from(months.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function getNavAtDate(series: { date: string; value: number }[], targetDate: string): number {
+  let best = 0;
+  for (const p of series) {
+    if (p.date <= targetDate) best = p.value;
+    else break;
+  }
+  return best;
+}
+
+function periodSince(period: NavPeriod, navSeries: { date: string; value: number }[], asOfDate?: string): string {
+  let startDate: string;
+  if (period === "Max") {
+    startDate = navSeries[0]?.date ?? "";
+  } else {
+    startDate = getNavCutoff(period, asOfDate);
+  }
+  if (!startDate) return "";
+  const d = new Date(startDate + "T00:00:00Z");
+  return `Since ${d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`;
+}
+
+const NAV_PERIODS: NavPeriod[] = ["1D", "1W", "6M", "YTD", "1Y", "3Y", "5Y", "Max"];
+
+function PeriodToggle({ value, onChange, compact }: {
+  value: NavPeriod;
+  onChange: (p: NavPeriod) => void;
+  compact?: boolean;
+}) {
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-foreground">Portfolio Value Over Time</h2>
-        <div className="flex gap-1 rounded-lg border p-0.5 bg-muted/40">
-          {periods.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={cn(
-                "px-2.5 py-1 rounded text-xs font-medium transition-colors",
-                period === p
-                  ? "bg-background shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <AreaChart data={data} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
-          <defs>
-            <linearGradient id="navGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <XAxis dataKey="date" tickFormatter={fmtNavDate} tick={TICK} tickLine={false} axisLine={false} minTickGap={48} />
-          <YAxis
-            tickFormatter={(v: number) => v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : `$${(v / 1_000).toFixed(0)}K`}
-            tick={TICK} tickLine={false} axisLine={false} width={56}
-          />
-          <Tooltip content={<NavTooltip />} />
-          <Area type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={2} fill="url(#navGrad)" dot={false} activeDot={{ r: 4, fill: "#0ea5e9" }} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </Card>
+    <div className="flex flex-wrap gap-0.5 w-fit rounded-lg border p-0.5 bg-muted/40">
+      {NAV_PERIODS.map((p) => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className={cn(
+            "rounded font-medium transition-colors",
+            compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
+            value === p
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
   );
 }
 
+// ── Partners Capital Snapshot ──────────────────────────────────────────────────
+function computePeriodActivity(
+  txns: Transaction[],
+  periodStart: string,
+  startNavMV: number,
+  endNavMV: number,
+  asOf: string,
+) {
+  const dayBefore = isoAddDays(periodStart, -1);
+  const startSnap = buildSnapshot(txns, dayBefore, {});
+
+  // Use NAV values directly as the period boundaries.
+  // snapshot.cash is accounting cash (contributions − purchases) and goes deeply negative
+  // when securities are transferred in-kind with no offsetting CONTRIBUTION transaction.
+  // Adding cash here would produce a wildly wrong ending balance.
+  const startingBalance = startNavMV;
+  const endingBalance   = endNavMV;
+
+  const periodTxns = txns
+    .filter((t) => t.trade_date >= periodStart && t.trade_date <= asOf)
+    .slice()
+    .sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+
+  let contributions = 0, distributions = 0, dividends = 0, interest = 0, fees = 0, realized = 0;
+
+  const positions: Record<string, { qty: number; cost: number }> = {};
+  for (const h of startSnap.holdings) {
+    positions[h.symbol] = { qty: h.quantity, cost: h.costBasis };
+  }
+
+  for (const t of periodTxns) {
+    const sym = (t.symbol ?? "").toUpperCase();
+    const qty = Math.abs(Number(t.quantity ?? 0));
+    const px  = Number(t.price ?? 0);
+    const amt = Number(t.amount ?? 0);
+    const fee = Number(t.fees ?? 0);
+    fees += fee;
+
+    switch (t.action) {
+      case "BUY": {
+        const pos = (positions[sym] ??= { qty: 0, cost: 0 });
+        pos.qty  += qty;
+        pos.cost += Math.abs(amt) || qty * px + fee;
+        break;
+      }
+      case "SELL": {
+        const pos = positions[sym] ?? { qty: 0, cost: 0 };
+        const avg = pos.qty > 0 ? pos.cost / pos.qty : 0;
+        const sellQty = Math.min(qty, pos.qty);
+        const proceeds = Math.abs(amt) || qty * px - fee;
+        realized += proceeds - avg * sellQty;
+        pos.qty  -= sellQty;
+        pos.cost -= avg * sellQty;
+        break;
+      }
+      case "DIVIDEND":     dividends += amt; break;
+      case "INTEREST":     interest  += amt; break;
+      case "CONTRIBUTION": contributions += Math.abs(amt); break;
+      case "DISTRIBUTION": distributions += Math.abs(amt); break;
+    }
+  }
+
+  const unrealizedChange =
+    endingBalance - startingBalance - contributions + distributions - dividends - interest - realized + fees;
+
+  return { startingBalance, contributions, distributions, dividends, interest, fees, realized, unrealizedChange, endingBalance };
+}
+
+type ActivityLine = { label: string; value: number; indent?: boolean; bold?: boolean; separator?: boolean };
+
+function CapitalSnapshot({
+  txns,
+  navSeries,
+  endMV,
+  period,
+  asOf,
+}: {
+  txns: Transaction[];
+  navSeries: { date: string; value: number }[];
+  endMV: number;
+  period: NavPeriod;
+  asOf: string;
+}) {
+  const activity = useMemo(() => {
+    let cutoff: string;
+    if (period === "Max") {
+      if (navSeries.length === 0) return null;
+      cutoff = navSeries[0].date;
+    } else {
+      cutoff = getNavCutoff(period, asOf);
+      if (!cutoff) return null;
+    }
+    const startNavMV = getNavAtDate(navSeries, cutoff);
+    if (startNavMV === 0 && navSeries.length === 0) return null;
+    return computePeriodActivity(txns, cutoff, startNavMV, endMV, asOf);
+  }, [txns, navSeries, endMV, period, asOf]);
+
+  const since = periodSince(period, navSeries, asOf);
+
+  if (!activity) return (
+    <div className="flex items-center justify-center text-xs text-muted-foreground h-full">
+      Select a period to see the capital snapshot
+    </div>
+  );
+
+  const lines: ActivityLine[] = [
+    { label: "Starting Balance", value: activity.startingBalance, bold: true },
+    { label: "Contributions",    value: activity.contributions,   indent: true },
+    { label: "Distributions",    value: -activity.distributions,  indent: true },
+    { label: "Interest",         value: activity.interest,        indent: true },
+    { label: "Dividends",        value: activity.dividends,       indent: true },
+    { label: "Fees & Exp.",      value: -activity.fees,           indent: true },
+    { label: "Unrealized G/L",   value: activity.unrealizedChange,indent: true },
+    { label: "Realized G/L",     value: activity.realized,        indent: true },
+    { label: "Ending Balance",   value: activity.endingBalance,   bold: true, separator: true },
+  ];
+
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-1">
+        {period} period{since ? <span className="text-muted-foreground/60"> · {since}</span> : null}
+      </p>
+      <table className="w-full text-xs mt-1">
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={i} className={cn(l.separator ? "border-t border-border/60" : "")}>
+              <td className={cn("py-1.5", l.indent ? "pl-3 text-muted-foreground" : "font-semibold text-foreground")}>
+                {l.label}
+              </td>
+              <td className={cn(
+                "py-1.5 text-right tabular-nums",
+                l.bold ? "font-semibold text-foreground" : "",
+                l.value < 0 ? "text-loss" : l.value > 0 && l.indent ? "text-gain" : "text-foreground",
+              )}>
+                {formatMoney(l.value)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 function Dashboard() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const [asOf, setAsOf] = useState(today);
-  const { snapshot, txns, isLoading, portfolioBeta, annualIncomeProjection } = usePortfolio(asOf);
+
+  // Clamp asOf to today on the client — guards against SSR computing a UTC date
+  // that's ahead of the user's local date (e.g. server UTC = Jun 26, local CDT = Jun 24)
+  useEffect(() => {
+    const cap = localDateStr();
+    if (asOf > cap) setAsOf(cap);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [navPeriod, setNavPeriod] = useState<NavPeriod>("YTD");
+  const [snapshotPeriod, setSnapshotPeriod] = useState<NavPeriod>("YTD");
+  const [treemapPeriod, setTreemapPeriod] = useState<NavPeriod>("YTD");
+  const [sectorBenchmark, setSectorBenchmark] = useState<"SPY" | "QQQ">("SPY");
+
+  const { snapshot, txns, isLoading } = usePortfolio(asOf);
   const { account } = useAccountFilter();
 
+  const clientToday = localDateStr();
   const navQ = useQuery({
-    queryKey: ["nav-history", account ?? "all"],
-    queryFn: () => getNavHistory({ data: { account } }),
+    queryKey: ["nav-history", account ?? "all", clientToday],
+    queryFn: () => getNavHistory({ data: { account, maxDate: localDateStr() } }),
     staleTime: 10 * 60_000,
   });
   const navSeries = navQ.data ?? [];
 
-  const pieRef     = useRef<HTMLDivElement>(null);
-  const sectorRef  = useRef<HTMLDivElement>(null);
-  const pieWidth    = useContainerWidth(pieRef);
-  const sectorWidth = useContainerWidth(sectorRef);
-  const showPieLabels    = pieWidth > 290;
-  const showSectorLabels = sectorWidth > 290;
+  // Historical prices at treemap period start — relative to asOf, not today
+  const periodStartDate = useMemo(() => {
+    if (treemapPeriod === "Max") return null;
+    return getNavCutoff(treemapPeriod, asOf);
+  }, [treemapPeriod, asOf]);
 
-  // ── Treemap ──────────────────────────────────────────────────────────────
-  const treemapData = snapshot.holdings
-    .filter(h => h.marketValue > 0)
-    .map(h => ({ name: h.symbol, value: h.marketValue, pct: h.unrealizedPLPct, pl: h.unrealizedPL }));
+  const holdingSymbols = useMemo(
+    () => snapshot.holdings.map((h) => h.symbol),
+    [snapshot.holdings],
+  );
 
-  // ── Allocation donut (top 12) ─────────────────────────────────────────────
-  const allocationData = snapshot.holdings.slice(0, 12).map(h => ({
-    name: h.symbol,
-    value: h.marketValue,
-    portfolioPct: h.weightPct, // actual % of full portfolio
-  }));
-  const smallAllocSlices = allocationData.filter(d => (d.portfolioPct ?? 0) < 2.0);
+  const periodStartPricesQ = useQuery({
+    queryKey: ["hist-prices-period-start", periodStartDate, holdingSymbols.join(",")],
+    enabled: !!periodStartDate && holdingSymbols.length > 0,
+    staleTime: 30 * 60_000,
+    queryFn: () =>
+      getHistoricalCloses({ data: { symbols: holdingSymbols, asOfDate: periodStartDate! } }),
+  });
+  const periodStartPrices = periodStartPricesQ.data ?? {};
 
-  // ── Sector allocation ─────────────────────────────────────────────────────
-  const sectorData = useMemo(() => {
+  // ── Treemap (treemapPeriod-based) ─────────────────────────────────────────
+  const treemapData = useMemo(() => snapshot.holdings
+    .filter((h) => h.marketValue > 0)
+    .map((h) => {
+      const pStartPrice = periodStartPrices[h.symbol] ?? periodStartPrices[h.symbol.replace(".", "-")] ?? 0;
+      let pct: number;
+      if (pStartPrice > 0 && h.marketPrice > 0 && treemapPeriod !== "Max") {
+        pct = ((h.marketPrice - pStartPrice) / pStartPrice) * 100;
+      } else {
+        pct = h.unrealizedPLPct;
+      }
+      const pl = pStartPrice > 0 && h.marketPrice > 0 && treemapPeriod !== "Max"
+        ? (h.marketPrice - pStartPrice) * h.quantity
+        : h.unrealizedPL;
+      return { name: h.symbol, value: h.marketValue, pct, pl };
+    }), [snapshot.holdings, periodStartPrices, treemapPeriod]);
+
+  // ── Equity sector breakdown pie — 100% = direct equity holdings only ──────
+  const equityBreakdownData = useMemo(() => {
+    const equityHoldings = snapshot.holdings.filter((h) => getAssetClass(h.symbol) === "Equities");
+    const totalEquityMV = equityHoldings.reduce((s, h) => s + h.marketValue, 0);
     const map: Record<string, number> = {};
-    for (const h of snapshot.holdings) {
-      const s = getSector(h.symbol);
-      map[s] = (map[s] ?? 0) + h.marketValue;
+    for (const h of equityHoldings) {
+      const sector = getSector(h.symbol);
+      map[sector] = (map[sector] ?? 0) + h.marketValue;
     }
-    return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, value]) => ({
-        name,
-        value,
-        portfolioPct: snapshot.totalMarketValue > 0 ? (value / snapshot.totalMarketValue) * 100 : 0,
-      }));
-  }, [snapshot.holdings, snapshot.totalMarketValue]);
-
-  const smallSectorSlices = sectorData.filter(d => d.portfolioPct < 2.0);
-
-  // ── Asset class ───────────────────────────────────────────────────────────
-  const assetClassData = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const h of snapshot.holdings) {
-      const cls = getAssetClass(h.symbol);
-      map[cls] = (map[cls] ?? 0) + h.marketValue;
-    }
-    if (snapshot.cash > 0) map["Cash"] = (map["Cash"] ?? 0) + snapshot.cash;
-    const total = Object.values(map).reduce((s, v) => s + v, 0);
-    return Object.entries(map)
+    const slices = Object.entries(map)
       .filter(([, v]) => v > 0)
       .sort((a, b) => b[1] - a[1])
       .map(([name, value]) => ({
+        name, value,
+        pct: totalEquityMV > 0 ? (value / totalEquityMV) * 100 : 0,
+      }));
+    return { totalEquityMV, slices };
+  }, [snapshot.holdings]);
+
+  // ── Asset class breakdown (bar chart) ────────────────────────────────────
+  const assetClassData = useMemo(() => {
+    const map: Record<string, { value: number; symbols: string[] }> = {};
+    for (const h of snapshot.holdings) {
+      const cls = getAssetClass(h.symbol);
+      if (!map[cls]) map[cls] = { value: 0, symbols: [] };
+      map[cls].value += h.marketValue;
+      map[cls].symbols.push(h.symbol);
+    }
+    if (snapshot.cash > 0) {
+      map["Cash"] = { value: (map["Cash"]?.value ?? 0) + snapshot.cash, symbols: map["Cash"]?.symbols ?? [] };
+    }
+    const total = Object.values(map).reduce((s, v) => s + v.value, 0);
+    return Object.entries(map)
+      .filter(([, v]) => v.value > 0)
+      .sort((a, b) => b[1].value - a[1].value)
+      .map(([name, v]) => ({
         name,
-        value,
-        portfolioPct: total > 0 ? (value / total) * 100 : 0,
+        value: v.value,
+        symbols: v.symbols,
+        portfolioPct: total > 0 ? (v.value / total) * 100 : 0,
       }));
   }, [snapshot.holdings, snapshot.cash]);
+
+  // ── Sector allocation vs SPY vs QQQ ──────────────────────────────────────
+  const sectorChartData = useMemo(() => {
+    const portfolioMap: Record<string, number> = {};
+    for (const h of snapshot.holdings) {
+      const s = getSector(h.symbol);
+      portfolioMap[s] = (portfolioMap[s] ?? 0) + h.weightPct;
+    }
+    const allSectors = new Set([
+      ...Object.keys(portfolioMap),
+      ...Object.keys(SPY_SECTOR_WEIGHTS),
+      ...Object.keys(QQQ_SECTOR_WEIGHTS),
+    ]);
+    return Array.from(allSectors)
+      .map((s) => ({
+        sector: s,
+        Portfolio: parseFloat((portfolioMap[s] ?? 0).toFixed(2)),
+        SPY:       parseFloat((SPY_SECTOR_WEIGHTS[s] ?? 0).toFixed(2)),
+        QQQ:       parseFloat((QQQ_SECTOR_WEIGHTS[s] ?? 0).toFixed(2)),
+      }))
+      .filter((d) => d.Portfolio > 0.1 || d.SPY > 0 || d.QQQ > 0)
+      .sort((a, b) => b.Portfolio - a.Portfolio);
+  }, [snapshot.holdings]);
+
+  // Lock the sector Y-axis to the global max across Portfolio, SPY, and QQQ
+  // so toggling benchmarks doesn't rescale the axis
+  const sectorYMax = useMemo(() => {
+    if (sectorChartData.length === 0) return 50;
+    let max = 0;
+    for (const d of sectorChartData) max = Math.max(max, d.Portfolio, d.SPY, d.QQQ);
+    return Math.ceil(max / 5) * 5; // round up to nearest 5%, no extra buffer
+  }, [sectorChartData]);
 
   // ── Monthly income ────────────────────────────────────────────────────────
   const incomeByMonth = useMemo(() => {
     const months: { month: string; label: string; Dividends: number; Interest: number }[] = [];
-    const now = new Date();
+    const [asOfY, asOfM] = asOf.split("-").map(Number);
     for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(asOfY, asOfM - 1 - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
       months.push({ month: key, label: d.toLocaleDateString("en-US", { month: "short" }), Dividends: 0, Interest: 0 });
     }
     for (const t of txns) {
       if (t.action !== "DIVIDEND" && t.action !== "INTEREST") continue;
-      const entry = months.find(m => m.month === t.trade_date.slice(0, 7));
+      const entry = months.find((m) => m.month === t.trade_date.slice(0, 7));
       if (!entry) continue;
       const amt = Number(t.amount ?? 0);
       if (t.action === "DIVIDEND") entry.Dividends += amt;
       else entry.Interest += amt;
     }
-    return months.map(m => ({ ...m, Dividends: +m.Dividends.toFixed(2), Interest: +m.Interest.toFixed(2) }));
-  }, [txns]);
+    return months.map((m) => ({ ...m, Dividends: +m.Dividends.toFixed(2), Interest: +m.Interest.toFixed(2) }));
+  }, [txns, asOf]);
 
   const totalIncome = incomeByMonth.reduce((s, m) => s + m.Dividends + m.Interest, 0);
+
+  // nav series filtered to selected period, capped at asOf AND today
+  const navData = useMemo(() => {
+    const end = asOf < clientToday ? asOf : clientToday;
+    const filtered = filterNavSeries(navSeries, navPeriod, end);
+    return filtered.filter((p) => p.date <= end);
+  }, [navSeries, navPeriod, asOf, clientToday]);
+
+  // For periods > 1W: resample to monthly so every year gets proportional width.
+  // 1D and 1W keep daily granularity since the day-level detail matters there.
+  const navChartData = useMemo(() => {
+    if (navPeriod === "1D" || navPeriod === "1W") return navData;
+    return resampleNavToMonthly(navData);
+  }, [navData, navPeriod]);
+
+  // X-axis tick format — avoids "Jun 26" ambiguity (looks like June 26th but means June 2026)
+  const navTickFormatter = useMemo(() => {
+    if (navPeriod === "1D" || navPeriod === "1W") {
+      // "Jun 24" — month + day, unambiguously a date
+      return (iso: string) => new Date(iso + "T00:00:00Z")
+        .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    }
+    if (navPeriod === "6M" || navPeriod === "YTD") {
+      // "Jun" — just month name, no year; avoids "Jun 26" confusion for single-year spans
+      return (iso: string) => new Date(iso + "T00:00:00Z")
+        .toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+    }
+    // 1Y, 3Y, 5Y, Max — "Jun 2026": full 4-digit year, cannot be confused with a day
+    return (iso: string) => new Date(iso + "T00:00:00Z")
+      .toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  }, [navPeriod]);
+
   const isGain = snapshot.unrealizedGain >= 0;
 
   return (
@@ -321,26 +606,71 @@ function Dashboard() {
               <span className="ml-1 text-muted-foreground">unrealized</span>
             </span>
             <span className="text-muted-foreground/30">·</span>
-            <span>
-              <span className="font-semibold tabular-nums text-foreground">{formatMoney(totalIncome)}</span>
-              <span className="ml-1 text-muted-foreground">income</span>
-            </span>
-            <span className="text-muted-foreground/30">·</span>
             <span className="text-muted-foreground">{snapshot.holdings.length} positions</span>
           </div>
         </div>
         <AsOfDatePicker value={asOf} onChange={setAsOf} />
       </div>
 
-      {/* ── NAV history chart ── */}
-      {navSeries.length >= 2 && (
-        <NavChart series={navSeries} />
-      )}
+      {/* ── NAV chart (2/3) + Partners Capital Snapshot (1/3) ── */}
+      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        {/* NAV chart — period toggle lives inside this card */}
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground">Portfolio Value Over Time</h2>
+            <PeriodToggle value={navPeriod} onChange={setNavPeriod} />
+          </div>
+          {navData.length < 2 ? (
+            <EmptyState height={280} />
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={navChartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="navGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#0ea5e9" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tickFormatter={navTickFormatter} tick={TICK} tickLine={false} axisLine={false} minTickGap={48} />
+                <YAxis
+                  tickFormatter={(v: number) => v >= 1_000_000 ? `$${(v/1_000_000).toFixed(1)}M` : `$${(v/1_000).toFixed(0)}K`}
+                  tick={TICK} tickLine={false} axisLine={false} width={56}
+                  domain={[(dataMin: number) => dataMin * 0.995, (dataMax: number) => dataMax * 1.005]}
+                />
+                <Tooltip content={<NavTooltip />} />
+                <Area type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={2} fill="url(#navGrad)" dot={false} activeDot={{ r: 4, fill: "#0ea5e9" }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
 
-      {/* ── Treemap hero ── */}
+        {/* Partners Capital Snapshot — own period toggle */}
+        <Card className="p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-3">Capital Snapshot</h2>
+          <PeriodToggle value={snapshotPeriod} onChange={setSnapshotPeriod} compact />
+          <div className="mt-3">
+            {isLoading ? (
+              <div className="text-xs text-muted-foreground animate-pulse">Loading…</div>
+            ) : (
+              <CapitalSnapshot
+                txns={txns}
+                navSeries={navSeries}
+                endMV={snapshot.totalMarketValue}
+                period={snapshotPeriod}
+                asOf={asOf}
+              />
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* ── Treemap — own period toggle in header ── */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-foreground">Unrealized P/L by Position</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-foreground">Unrealized P/L by Position</h2>
+            <PeriodToggle value={treemapPeriod} onChange={setTreemapPeriod} compact />
+          </div>
           <span className="text-xs">sized by market value · hover for details</span>
         </div>
         <div className="bg-card rounded-xl border border-border overflow-hidden" style={{ height: 480 }}>
@@ -352,7 +682,6 @@ function Dashboard() {
             </ResponsiveContainer>
           )}
         </div>
-        {/* Gradient key */}
         <div className="flex items-center gap-2 mt-2 px-0.5">
           <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">≤ −10%</span>
           <div className="flex-1 h-1.5 rounded-l-full"
@@ -364,132 +693,86 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* ── Row 1: Allocation + Monthly Income ── */}
-      <div className="grid gap-4 lg:grid-cols-[2fr_3fr]">
+      {/* ── Asset Class Allocation Pie + Asset Class bar ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Equity sector breakdown pie — 100% = direct equity holdings */}
         <Card className="p-5">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-sm font-semibold text-foreground">Allocation</h2>
-            <span className="text-xs">Top 12 by position</span>
-          </div>
-          {allocationData.length === 0 ? <EmptyState height={240} /> : (
-            <div ref={pieRef}>
-              <ResponsiveContainer width="100%" height={showPieLabels ? 260 : 200}>
-                <PieChart>
-                  <Pie data={allocationData} dataKey="value" nameKey="name"
-                    outerRadius={showPieLabels ? 82 : 88} innerRadius={showPieLabels ? 48 : 52}
-                    paddingAngle={2} strokeWidth={0}
-                    label={showPieLabels ? PieSliceLabel : undefined}
-                    labelLine={false}
-                  >
-                    {allocationData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: number, name: string) => [formatMoney(v), name]} contentStyle={TOOLTIP_STYLE} />
-                </PieChart>
-              </ResponsiveContainer>
-              {(!showPieLabels || smallAllocSlices.length > 0) && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
-                  {(showPieLabels ? smallAllocSlices : allocationData).map((d) => {
-                    const i = allocationData.findIndex(a => a.name === d.name);
-                    return (
-                      <div key={d.name} className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
-                        <span className="text-xs truncate text-muted-foreground">{d.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+          <div className="mb-2">
+            <h2 className="text-sm font-semibold text-foreground">Equity Sector Allocation</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {formatMoney(equityBreakdownData.totalEquityMV)} equities
+              {snapshot.totalMarketValue > 0 && (
+                <> · {((equityBreakdownData.totalEquityMV / snapshot.totalMarketValue) * 100).toFixed(1)}% of portfolio</>
               )}
-            </div>
-          )}
-        </Card>
-
-        <Card className="p-5">
-          <div className="mb-3">
-            <h2 className="text-sm font-semibold text-foreground">Monthly Income</h2>
-            <p className="text-xs mt-0.5">
-              <span className="text-foreground tabular-nums font-semibold">{formatMoney(totalIncome)}</span>
-              {" "}last 12 months
             </p>
           </div>
-          {incomeByMonth.every(m => m.Dividends === 0 && m.Interest === 0) ? <EmptyState height={200} /> : (
-            <div className="text-muted-foreground">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={incomeByMonth} margin={{ left: 4, right: 4, top: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                  <XAxis dataKey="label" tick={{ ...TICK, fontSize: 10 } as any} interval={1} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={TICK} width={40} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(v: number, n: string) => [formatMoney(v), n]} contentStyle={TOOLTIP_STYLE} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {/* PALETTE[0]=crimson, PALETTE[1]=orange — warm, income-themed */}
-                  <Bar dataKey="Dividends" stackId="i" fill={PALETTE[1]} maxBarSize={28} />
-                  <Bar dataKey="Interest"  stackId="i" fill={PALETTE[2]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* ── Row 2: Sector + Asset Class ── */}
-      <div className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:items-start">
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-sm font-semibold text-foreground">Sector Allocation</h2>
-            <span className="text-xs">{sectorData.length} sectors</span>
-          </div>
-          {sectorData.length === 0 ? <EmptyState height={240} /> : (
-            <div ref={sectorRef}>
-              <ResponsiveContainer width="100%" height={showSectorLabels ? 260 : 200}>
+          {equityBreakdownData.slices.length === 0 ? <EmptyState height={280} /> : (
+            <div>
+              <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={sectorData} dataKey="value" nameKey="name"
-                    outerRadius={showSectorLabels ? 82 : 88} innerRadius={showSectorLabels ? 48 : 52}
+                  <Pie
+                    data={equityBreakdownData.slices} dataKey="value" nameKey="name"
+                    outerRadius={100} innerRadius={58}
                     paddingAngle={2} strokeWidth={0}
-                    label={showSectorLabels ? PieSliceLabel : undefined}
-                    labelLine={false}
                   >
-                    {sectorData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                    {equityBreakdownData.slices.map((d, i) => <Cell key={i} fill={sectorColor(d.name, i)} />)}
                   </Pie>
                   <Tooltip
-                    formatter={(v: number, name: string) => [formatMoney(v), name]}
+                    formatter={(v: number, name: string) => [
+                      `${formatMoney(v)}  ·  ${equityBreakdownData.slices.find(s => s.name === name)?.pct.toFixed(1) ?? ""}%`,
+                      sectorLabel(name as string),
+                    ]}
                     contentStyle={TOOLTIP_STYLE}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              {(!showSectorLabels || smallSectorSlices.length > 0) && (
-                <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2">
-                  {(showSectorLabels ? smallSectorSlices : sectorData).map((d) => {
-                    const i = sectorData.findIndex(s => s.name === d.name);
-                    return (
-                      <div key={d.name} className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
-                        <span className="text-xs text-muted-foreground">{d.name}</span>
-                        <span className="text-xs tabular-nums text-muted-foreground">{d.portfolioPct.toFixed(1)}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-3">
+                {equityBreakdownData.slices.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: sectorColor(d.name, i) }} />
+                    <span className="text-[13px] text-foreground font-medium truncate">{sectorLabel(d.name)}</span>
+                    <span className="text-[13px] tabular-nums text-muted-foreground ml-auto font-semibold">{d.pct.toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>
 
+        {/* Asset class bar */}
         <Card className="p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4">Asset Class</h2>
+          <div className="flex items-start justify-between mb-5">
+            <h2 className="text-sm font-semibold text-foreground">Asset Class</h2>
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Total AUM</p>
+              <p className="text-sm font-semibold tabular-nums text-foreground">{formatMoney(snapshot.totalMarketValue)}</p>
+            </div>
+          </div>
           {assetClassData.length === 0 ? <EmptyState height={180} /> : (
-            <div className="space-y-3">
+            <div className="space-y-5">
               {assetClassData.map((d, i) => (
                 <div key={d.name}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
-                      <span className="text-foreground font-medium">{d.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 tabular-nums">
-                      <span className="text-muted-foreground">{formatMoney(d.value)}</span>
+                  <div className="flex items-center justify-between text-sm mb-1.5">
+                    {d.name === "Other" ? (
+                      <span className="relative group cursor-default flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
+                        <span className="text-foreground font-medium underline decoration-dotted decoration-muted-foreground/50">Other</span>
+                        <span className="absolute left-0 bottom-full mb-1.5 z-50 hidden group-hover:block w-52 rounded-md border bg-card shadow-lg px-2.5 py-2 text-[11px] text-foreground whitespace-normal">
+                          {d.symbols.slice(0, 12).join(", ")}{d.symbols.length > 12 ? ` +${d.symbols.length - 12} more` : ""}
+                        </span>
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
+                        <span className="text-foreground font-medium">{d.name}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 tabular-nums">
+                      <span className="text-muted-foreground text-xs">{formatMoney(d.value)}</span>
                       <span className="font-semibold text-foreground w-10 text-right">{d.portfolioPct.toFixed(1)}%</span>
                     </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-4 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full"
                       style={{ width: `${d.portfolioPct}%`, background: PALETTE[i % PALETTE.length] }}
@@ -502,28 +785,97 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* ── Stat strip ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatChip label="Realized Gain"      value={formatMoney(snapshot.realizedGain)}  positive={snapshot.realizedGain >= 0} />
-        <StatChip label="Dividend Income"    value={formatMoney(snapshot.dividendIncome)} positive />
-        <StatChip label="Interest Income"    value={formatMoney(snapshot.interestIncome)} positive />
-        <StatChip label="Cash"               value={formatMoney(snapshot.cash)} />
-        <StatChip label="Exp. Annual Income" value={annualIncomeProjection > 0 ? formatMoney(annualIncomeProjection) : "—"} positive={annualIncomeProjection > 0} />
-        <StatChip label="Portfolio Beta"     value={portfolioBeta != null ? portfolioBeta.toFixed(2) : "—"} />
-      </div>
-    </div>
-  );
-}
+      {/* ── Sector vs SPY/QQQ — vertical bar chart, full width by default ── */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Sector Allocation vs. Benchmarks</h2>
+            <p className="text-xs mt-0.5">Portfolio weight by sector vs. {sectorBenchmark === "SPY" ? "S&P 500 (SPY)" : "NASDAQ 100 (QQQ)"}</p>
+          </div>
+          {/* Benchmark toggle */}
+          <div className="flex gap-0.5 rounded-lg border p-0.5 bg-muted/40">
+            {(["SPY", "QQQ"] as const).map((b) => (
+              <button
+                key={b}
+                onClick={() => setSectorBenchmark(b)}
+                className={cn(
+                  "px-2.5 py-1 rounded text-xs font-medium transition-colors",
+                  sectorBenchmark === b
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+        {sectorChartData.length === 0 ? <EmptyState height={300} /> : (
+          <ResponsiveContainer width="100%" height={360}>
+            <BarChart
+              data={sectorChartData}
+              margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis
+                dataKey="sector"
+                tick={{ ...TICK, fontSize: 10 } as any}
+                tickLine={false}
+                axisLine={false}
+                angle={-45}
+                textAnchor="end"
+                interval={0}
+                height={75}
+              />
+              <YAxis
+                tickFormatter={(v) => `${v}%`}
+                tick={TICK}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+                domain={[0, sectorYMax]}
+              />
+              <Tooltip
+                formatter={(v: number, name: string) => [`${v.toFixed(2)}%`, name]}
+                contentStyle={TOOLTIP_STYLE}
+              />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+              <Bar dataKey="Portfolio" fill="#0ea5e9" maxBarSize={22} />
+              {sectorBenchmark === "SPY"
+                ? <Bar dataKey="SPY" fill="#94a3b8" maxBarSize={22} />
+                : <Bar dataKey="QQQ" fill="#8b5cf6" maxBarSize={22} />
+              }
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Card>
 
-function StatChip({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
-  return (
-    <Card className="p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1.5">{label}</p>
-      <p className={cn("text-sm font-semibold tabular-nums",
-        positive == null ? "text-foreground" : positive ? "text-gain" : "text-loss")}>
-        {value}
-      </p>
-    </Card>
+      {/* ── Monthly Income (bottom) ── */}
+      <Card className="p-5">
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold text-foreground">Monthly Income</h2>
+          <p className="text-xs mt-0.5">
+            <span className="text-foreground tabular-nums font-semibold">{formatMoney(totalIncome)}</span>
+            {" "}last 12 months
+          </p>
+        </div>
+        {incomeByMonth.every((m) => m.Dividends === 0 && m.Interest === 0) ? <EmptyState height={200} /> : (
+          <div className="text-muted-foreground">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={incomeByMonth} margin={{ left: 4, right: 4, top: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="label" tick={{ ...TICK, fontSize: 10 } as any} interval={0} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} tick={TICK} width={40} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(v: number, n: string) => [formatMoney(v), n]} contentStyle={TOOLTIP_STYLE} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Dividends" stackId="i" fill="#16a34a" stroke="white" strokeWidth={1} maxBarSize={28} />
+                <Bar dataKey="Interest"  stackId="i" fill="#38bdf8" stroke="white" strokeWidth={1} maxBarSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 

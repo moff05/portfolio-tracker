@@ -21,6 +21,11 @@ type SortDir = "asc" | "desc";
 type SortConfig = { key: SortKey; dir: SortDir } | null;
 type LotMethod = "FIFO" | "HIFO";
 
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <ChevronsUpDown className="w-3 h-3 opacity-30 shrink-0" />;
   return dir === "desc"
@@ -133,11 +138,22 @@ function LotRows({ lots, marketPrice }: { lots: TaxLot[]; marketPrice: number })
   );
 }
 
+function PerformerBar({ pct, maxPct, gain }: { pct: number; maxPct: number; gain: boolean }) {
+  const width = maxPct > 0 ? Math.abs(pct) / maxPct * 100 : 0;
+  return (
+    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden min-w-0">
+      <div
+        className={cn("h-full rounded-full transition-all", gain ? "bg-gain" : "bg-loss")}
+        style={{ width: `${width}%` }}
+      />
+    </div>
+  );
+}
+
 function Holdings() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [asOf, setAsOf] = useState(today);
+  const [asOf, setAsOf] = useState(localDateStr);
   const [sort, setSort] = useState<SortConfig>(null);
-  const [method, setMethod] = useState<LotMethod>("FIFO");
+  const [method, setMethod] = useState<LotMethod>("HIFO");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { txns, snapshot, isLoading, unmapped } = usePortfolio(asOf);
 
@@ -166,6 +182,40 @@ function Holdings() {
     () => buildLots(txns, method, asOf),
     [txns, method, asOf],
   );
+
+  // Top/worst 5 performers (by unrealized P/L %)
+  const rankedHoldings = useMemo(
+    () => [...snapshot.holdings].filter((h) => h.marketValue > 0 && h.costBasis > 0),
+    [snapshot.holdings],
+  );
+  const top5   = useMemo(() => [...rankedHoldings].sort((a, b) => b.unrealizedPLPct - a.unrealizedPLPct).slice(0, 5), [rankedHoldings]);
+  const worst5 = useMemo(() => [...rankedHoldings].sort((a, b) => a.unrealizedPLPct - b.unrealizedPLPct).slice(0, 5), [rankedHoldings]);
+
+  // Scale for progress bars — max of each group (minimum 1 to avoid division by zero)
+  const maxTopPct   = useMemo(() => Math.max(...top5.map((h) => h.unrealizedPLPct), 1), [top5]);
+  const maxWorstPct = useMemo(() => Math.max(...worst5.map((h) => Math.abs(h.unrealizedPLPct)), 1), [worst5]);
+
+  // Totals row
+  const totals = useMemo(() => {
+    const h = snapshot.holdings;
+    const marketValue    = h.reduce((s, x) => s + x.marketValue, 0);
+    const costBasis      = h.reduce((s, x) => s + x.costBasis, 0);
+    const unrealizedPL   = marketValue - costBasis;
+    const unrealizedPLPct = costBasis > 0 ? (unrealizedPL / costBasis) * 100 : 0;
+    const annualIncome   = h.reduce((s, x) => s + x.annualDividendIncome, 0);
+
+    // Weighted-average beta: only holdings with a known beta, weighted by market value
+    const betaHoldings  = h.filter((x) => x.beta != null && x.marketValue > 0);
+    const betaCoveredMV = betaHoldings.reduce((s, x) => s + x.marketValue, 0);
+    const weightedBeta  = betaCoveredMV > 0
+      ? betaHoldings.reduce((s, x) => s + x.beta! * x.marketValue, 0) / betaCoveredMV
+      : null;
+
+    // Portfolio yield = total annual income / total market value
+    const portfolioYield = marketValue > 0 && annualIncome > 0 ? annualIncome / marketValue : null;
+
+    return { marketValue, costBasis, unrealizedPL, unrealizedPLPct, annualIncome, weightedBeta, portfolioYield };
+  }, [snapshot.holdings]);
 
   return (
     <div className="p-6 lg:p-8 space-y-6 text-muted-foreground">
@@ -199,6 +249,54 @@ function Holdings() {
 
       <UnmappedBanner unmapped={unmapped} />
 
+      {/* Top / Worst performers */}
+      {rankedHoldings.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <Card className="p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-3">
+              Top Performers
+            </p>
+            <div className="space-y-3">
+              {top5.map((h) => (
+                <div key={h.symbol} className="flex items-center gap-3">
+                  <span className="w-14 shrink-0 text-sm font-semibold text-foreground">{h.symbol}</span>
+                  <PerformerBar pct={h.unrealizedPLPct} maxPct={maxTopPct} gain={true} />
+                  <div className="shrink-0 text-right w-28">
+                    <div className="text-sm font-bold text-gain leading-snug">
+                      +{h.unrealizedPLPct.toFixed(1)}%
+                    </div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">
+                      {formatMoney(h.unrealizedPL)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-3">
+              Worst Performers
+            </p>
+            <div className="space-y-3">
+              {worst5.map((h) => (
+                <div key={h.symbol} className="flex items-center gap-3">
+                  <span className="w-14 shrink-0 text-sm font-semibold text-foreground">{h.symbol}</span>
+                  <PerformerBar pct={h.unrealizedPLPct} maxPct={maxWorstPct} gain={h.unrealizedPLPct >= 0} />
+                  <div className="shrink-0 text-right w-28">
+                    <div className={cn("text-sm font-bold leading-snug", h.unrealizedPLPct >= 0 ? "text-gain" : "text-loss")}>
+                      {h.unrealizedPLPct >= 0 ? "+" : ""}{h.unrealizedPLPct.toFixed(1)}%
+                    </div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">
+                      {formatMoney(h.unrealizedPL)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       <Card>
         <Table>
           <TableHeader>
@@ -219,6 +317,36 @@ function Holdings() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* Total row — pinned at top */}
+            {holdings.length > 0 && (
+              <TableRow className="bg-muted/30 font-semibold border-b-2 border-border">
+                <TableCell className="w-8" />
+                <TableCell className="text-foreground">Total</TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell className="text-right tabular-nums text-foreground">{formatMoney(totals.marketValue)}</TableCell>
+                <TableCell className="text-right tabular-nums text-foreground">{formatMoney(totals.costBasis)}</TableCell>
+                <TableCell className={cn("text-right tabular-nums font-semibold", totals.unrealizedPL >= 0 ? "text-gain" : "text-loss")}>
+                  {formatMoney(totals.unrealizedPL)}
+                </TableCell>
+                <TableCell className={cn("text-right tabular-nums", totals.unrealizedPLPct >= 0 ? "text-gain" : "text-loss")}>
+                  {totals.unrealizedPLPct.toFixed(2)}%
+                </TableCell>
+                <TableCell className="text-right tabular-nums">100.00%</TableCell>
+                <TableCell className="text-right tabular-nums text-foreground">
+                  {totals.weightedBeta != null ? totals.weightedBeta.toFixed(2) : <span className="text-muted-foreground/40">—</span>}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {totals.portfolioYield != null
+                    ? `${(totals.portfolioYield * 100).toFixed(2)}%`
+                    : <span className="text-muted-foreground/40">—</span>}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-gain">
+                  {totals.annualIncome > 0 ? formatMoney(totals.annualIncome) : "—"}
+                </TableCell>
+              </TableRow>
+            )}
             {holdings.length === 0 && (
               <TableRow>
                 <TableCell colSpan={13} className="text-center text-muted-foreground py-12">

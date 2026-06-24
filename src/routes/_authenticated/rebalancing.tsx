@@ -95,8 +95,14 @@ function generateObservations(holdings: any[]): Observation[] {
   return obs;
 }
 
+function fmtDate(iso: string) {
+  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+  });
+}
+
 function RebalancingPage() {
-  const { snapshot, isLoading } = usePortfolio();
+  const { snapshot, txns, isLoading } = usePortfolio();
   const holdings = snapshot.holdings;
 
   const sorted = useMemo(
@@ -111,6 +117,19 @@ function RebalancingPage() {
 
   const [tableSort, handleTableSort] = useSortable("weightPct");
   const tableRows = useMemo(() => sortRows(enriched as any[], tableSort), [enriched, tableSort]);
+
+  const recentBuys = useMemo(
+    () => txns.filter((t) => t.action === "BUY" && t.symbol)
+      .sort((a, b) => b.trade_date.localeCompare(a.trade_date))
+      .slice(0, 5),
+    [txns],
+  );
+  const recentSells = useMemo(
+    () => txns.filter((t) => t.action === "SELL" && t.symbol)
+      .sort((a, b) => b.trade_date.localeCompare(a.trade_date))
+      .slice(0, 5),
+    [txns],
+  );
 
   const sectorTotals = useMemo(() => {
     const map: Record<string, number> = {};
@@ -179,27 +198,80 @@ function RebalancingPage() {
         </Card>
       </div>
 
-      {/* Observations */}
-      {observations.length > 0 && (
+      {/* Recent Activity */}
+      <div className="grid lg:grid-cols-2 gap-4">
         <Card className="p-5">
-          <h2 className="font-semibold text-foreground mb-3">Observations</h2>
-          <ul className="space-y-2">
-            {observations.map((o, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-sm">
-                <span className={cn(
-                  "mt-0.5 w-2 h-2 rounded-full shrink-0",
-                  o.level === "notable" ? "bg-amber-400" : "bg-sky-400",
-                )} />
-                <span>{o.text}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-center gap-1.5 mt-4 pt-3 border-t text-[11px]">
-            <Info className="w-3 h-3 shrink-0" />
-            These are factual observations only — no action is implied or recommended.
-          </div>
+          <h2 className="font-semibold text-foreground mb-3">5 Most Recent Buys</h2>
+          {recentBuys.length === 0 ? (
+            <p className="text-xs">No buy transactions found.</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/60 text-muted-foreground/70">
+                  <th className="text-left pb-1.5 font-medium">Date</th>
+                  <th className="text-left pb-1.5 font-medium">Symbol</th>
+                  <th className="text-right pb-1.5 font-medium">Qty</th>
+                  <th className="text-right pb-1.5 font-medium">Price</th>
+                  <th className="text-right pb-1.5 font-medium">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentBuys.map((t) => (
+                  <tr key={`${t.id}`} className="border-b border-border/30 last:border-0">
+                    <td className="py-1.5">{fmtDate(t.trade_date)}</td>
+                    <td className="py-1.5 font-medium text-foreground">{(t.symbol ?? "").toUpperCase()}</td>
+                    <td className="py-1.5 tabular-nums text-right">
+                      {Number(t.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                    </td>
+                    <td className="py-1.5 tabular-nums text-right">
+                      {Number(t.price ?? 0) > 0 ? `$${Number(t.price).toFixed(2)}` : "—"}
+                    </td>
+                    <td className="py-1.5 tabular-nums text-right font-medium text-foreground">
+                      {Number(t.amount ?? 0) !== 0 ? `$${Math.abs(Number(t.amount)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </Card>
-      )}
+
+        <Card className="p-5">
+          <h2 className="font-semibold text-foreground mb-3">5 Most Recent Sells</h2>
+          {recentSells.length === 0 ? (
+            <p className="text-xs">No sell transactions found.</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/60 text-muted-foreground/70">
+                  <th className="text-left pb-1.5 font-medium">Date</th>
+                  <th className="text-left pb-1.5 font-medium">Symbol</th>
+                  <th className="text-right pb-1.5 font-medium">Qty</th>
+                  <th className="text-right pb-1.5 font-medium">Price</th>
+                  <th className="text-right pb-1.5 font-medium">Proceeds</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentSells.map((t) => (
+                  <tr key={`${t.id}`} className="border-b border-border/30 last:border-0">
+                    <td className="py-1.5">{fmtDate(t.trade_date)}</td>
+                    <td className="py-1.5 font-medium text-foreground">{(t.symbol ?? "").toUpperCase()}</td>
+                    <td className="py-1.5 tabular-nums text-right">
+                      {Number(t.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                    </td>
+                    <td className="py-1.5 tabular-nums text-right">
+                      {Number(t.price ?? 0) > 0 ? `$${Number(t.price).toFixed(2)}` : "—"}
+                    </td>
+                    <td className="py-1.5 tabular-nums text-right font-medium text-gain">
+                      {Number(t.amount ?? 0) !== 0 ? `$${Math.abs(Number(t.amount)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Sector breakdown */}
@@ -250,6 +322,28 @@ function RebalancingPage() {
           </div>
         </Card>
       </div>
+
+      {/* Observations (moved below sector/position) */}
+      {observations.length > 0 && (
+        <Card className="p-5">
+          <h2 className="font-semibold text-foreground mb-3">Observations</h2>
+          <ul className="space-y-2">
+            {observations.map((o, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm">
+                <span className={cn(
+                  "mt-0.5 w-2 h-2 rounded-full shrink-0",
+                  o.level === "notable" ? "bg-amber-400" : "bg-sky-400",
+                )} />
+                <span>{o.text}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center gap-1.5 mt-4 pt-3 border-t text-[11px]">
+            <Info className="w-3 h-3 shrink-0" />
+            These are factual observations only — no action is implied or recommended.
+          </div>
+        </Card>
+      )}
 
       {/* Full holdings table */}
       <Card>

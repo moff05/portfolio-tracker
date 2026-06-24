@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { getHistoricalCloses, getQuotes } from "@/lib/prices.functions";
-import { buildPeriodActivity, formatMoney, quarterBounds, isoAddDays } from "@/lib/portfolio";
+import { buildPeriodActivity, formatMoney, isoAddDays } from "@/lib/portfolio";
 import { exportStatementPDF, type StatementPDFData } from "@/lib/export-pdf";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,19 +16,40 @@ export const Route = createFileRoute("/_authenticated/statement")({
   component: Statement,
 });
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const MONTH_NAMES = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+function lastDayOfMonth(year: number, month: number): string {
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2,"0")}-${String(last).padStart(2,"0")}`;
+}
+
+function firstDayOfMonth(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2,"0")}-01`;
+}
 
 function Statement() {
   const now = new Date();
-  const currentYear = now.getUTCFullYear();
-  const currentQ = (Math.floor(now.getUTCMonth() / 3) + 1) as 1 | 2 | 3 | 4;
-  const [year, setYear] = useState(currentYear);
-  const [quarter, setQuarter] = useState<1 | 2 | 3 | 4>(currentQ);
-  const [exporting, setExporting] = useState(false);
+  const currentYear  = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-based, local
 
-  const { start, end } = quarterBounds(year, quarter);
-  const today = todayIso();
-  const effectiveEnd = end > today ? today : end;
+  const [startYear,  setStartYear]  = useState(currentYear);
+  const [startMonth, setStartMonth] = useState(1);          // default: Jan of current year
+  const [endYear,    setEndYear]    = useState(currentYear);
+  const [endMonth,   setEndMonth]   = useState(currentMonth);
+  const [exporting,  setExporting]  = useState(false);
+
+  const start       = firstDayOfMonth(startYear, startMonth);
+  const endNominal  = lastDayOfMonth(endYear, endMonth);
+  const today       = todayIso();
+  const effectiveEnd = endNominal > today ? today : endNominal;
 
   const { txns, isLoading: portfolioLoading } = usePortfolio();
 
@@ -73,27 +94,27 @@ function Statement() {
   );
 
   const lines: { label: string; value: number; bold?: boolean; indent?: boolean; separator?: boolean }[] = [
-    { label: "Beginning Capital", value: period.beginningCapital, bold: true },
-    { label: "Contributions", value: period.contributions, indent: true },
-    { label: "Distributions", value: -period.distributions, indent: true },
-    { label: "Interest Income", value: period.interestIncome, indent: true },
-    { label: "Dividend Income", value: period.dividendIncome, indent: true },
-    { label: "Realized Gain / (Loss)", value: period.realizedGain, indent: true },
+    { label: "Beginning Capital",     value: period.beginningCapital, bold: true },
+    { label: "Contributions",         value: period.contributions,    indent: true },
+    { label: "Distributions",         value: -period.distributions,   indent: true },
+    { label: "Interest Income",       value: period.interestIncome,   indent: true },
+    { label: "Dividend Income",       value: period.dividendIncome,   indent: true },
+    { label: "Realized Gain / (Loss)",value: period.realizedGain,     indent: true },
     { label: "Unrealized Gain / (Loss)", value: period.unrealizedGain, indent: true },
-    { label: "Fees", value: -period.fees, indent: true },
-    { label: "Net Income (Loss)", value: period.netIncome, bold: true, separator: true },
-    { label: "Ending Capital", value: period.endingCapital, bold: true, separator: true },
+    { label: "Fees",                  value: -period.fees,            indent: true },
+    { label: "Net Income (Loss)",     value: period.netIncome,        bold: true, separator: true },
+    { label: "Ending Capital",        value: period.endingCapital,    bold: true, separator: true },
   ];
 
   async function handleExportPDF() {
     setExporting(true);
     try {
       const pdfData: StatementPDFData = {
-        quarter,
-        year,
+        quarter: Math.ceil(startMonth / 3) as 1|2|3|4,
+        year: startYear,
         periodStart: start,
         periodEnd: effectiveEnd,
-        isPartial: effectiveEnd !== end,
+        isPartial: effectiveEnd !== endNominal,
         lines,
       };
       await exportStatementPDF(pdfData);
@@ -102,8 +123,12 @@ function Statement() {
     }
   }
 
-  const years = [];
+  const years: number[] = [];
   for (let y = currentYear; y >= currentYear - 10; y--) years.push(y);
+
+  const periodLabel = start === firstDayOfMonth(startYear, startMonth) && effectiveEnd === endNominal
+    ? `${MONTH_NAMES[startMonth-1]} ${startYear} — ${MONTH_NAMES[endMonth-1]} ${endYear}`
+    : `${start} — ${effectiveEnd}`;
 
   return (
     <div className="p-6 lg:p-8 space-y-6 text-muted-foreground">
@@ -111,25 +136,49 @@ function Statement() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Capital Statement</h1>
           <p className="text-sm">
-            Quarterly schedule of contributions, income, gains, and distributions.
+            Select a start and end month. Start = 1st of that month, end = last day.
           </p>
         </div>
-        <div className="flex gap-2 items-center">
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={String(quarter)} onValueChange={(v) => setQuarter(Number(v) as 1|2|3|4)}>
-            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">Q1</SelectItem>
-              <SelectItem value="2">Q2</SelectItem>
-              <SelectItem value="3">Q3</SelectItem>
-              <SelectItem value="4">Q4</SelectItem>
-            </SelectContent>
-          </Select>
+
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Start month */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">From</span>
+            <Select value={String(startMonth)} onValueChange={(v) => setStartMonth(Number(v))}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MONTH_NAMES.map((name, i) => (
+                  <SelectItem key={i+1} value={String(i+1)}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* End month */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">To</span>
+            <Select value={String(endMonth)} onValueChange={(v) => setEndMonth(Number(v))}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MONTH_NAMES.map((name, i) => (
+                  <SelectItem key={i+1} value={String(i+1)}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button
             variant="outline"
             size="sm"
@@ -147,9 +196,9 @@ function Statement() {
       <Card className="p-8 max-w-2xl mx-auto">
         <div className="text-center border-b border-border pb-5 mb-6">
           <div className="text-xs font-medium uppercase tracking-widest">Statement of Partner's Capital</div>
-          <div className="text-xl font-semibold text-foreground mt-2">Q{quarter} {year}</div>
+          <div className="text-xl font-semibold text-foreground mt-2">{periodLabel}</div>
           <div className="text-xs mt-1">
-            {start} — {effectiveEnd}{effectiveEnd !== end && " (to-date)"}
+            {start} — {effectiveEnd}{effectiveEnd !== endNominal && " (to-date)"}
           </div>
           {isLoading && (
             <div className="text-xs mt-2 animate-pulse">Loading prices…</div>

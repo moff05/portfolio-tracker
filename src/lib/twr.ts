@@ -64,28 +64,33 @@ export type AttributionRow = {
   netInvested: number;    // BUY cost - SELL proceeds added mid-period (for this symbol)
   dollarsGained: number;  // endValue - startValue - netInvested
   positionReturn: number; // dollarsGained / startValue (0 when no opening position)
-  contribution: number;   // dollarsGained / total starting portfolio value
+  contribution: number;   // dollarsGained / |total portfolio $ gain| — share of total gain
 };
 
 export type PerformanceResult = {
   startDate: string;
   endDate: string;
   twr: number;
-  twrAnnualized: number | null;
+  twrAnnualized: number;
   irr: number | null;
   volatility: number | null;
   maxDrawdown: number | null;
   sharpe: number | null;
+  moic: number | null;
   riskFreeRate: number;
   attribution: AttributionRow[];
   subPeriods: SubPeriod[];
   startValue: number;
   endValue: number;
   totalDays: number;
+  totalContributions: number;
+  totalDistributions: number;
   benchmarkReturn: number | null;
   benchmarkAnnualized: number | null;
   qqqReturn: number | null;
   qqqAnnualized: number | null;
+  beta: number | null;
+  betaQQQ: number | null;
   chartPoints: ChartPoint[];
 };
 
@@ -113,22 +118,30 @@ export function computeTWR(
   pricesByDate: Record<string, Record<string, number>>,
   benchmarkPrices: Record<string, number> = {},
   benchmarkPricesQQQ: Record<string, number> = {},
+  extraBoundaries: string[] = [],
 ): PerformanceResult {
-  const cfDates = Array.from(
-    new Set(
-      txns
-        .filter(
-          (t) =>
-            t.trade_date > startDate &&
-            t.trade_date < endDate &&
-            (t.action === "CONTRIBUTION" || t.action === "DISTRIBUTION") &&
-            Math.abs(Number(t.amount)) >= MIN_CF_AMOUNT,
-        )
-        .map((t) => t.trade_date),
-    ),
+  // Separate contribution/distribution dates from in-kind boundaries so we can
+  // adjust startValue for the contribution case (see below).
+  const contributionDates = new Set(
+    txns
+      .filter(
+        (t) =>
+          t.trade_date > startDate &&
+          t.trade_date < endDate &&
+          (t.action === "CONTRIBUTION" || t.action === "DISTRIBUTION") &&
+          Math.abs(Number(t.amount)) >= MIN_CF_AMOUNT,
+      )
+      .map((t) => t.trade_date),
+  );
+
+  const allBoundaryDates = Array.from(
+    new Set([
+      ...contributionDates,
+      ...extraBoundaries.filter((d) => d > startDate && d < endDate),
+    ]),
   ).sort();
 
-  const boundaries = [startDate, ...cfDates, endDate];
+  const boundaries = [startDate, ...allBoundaryDates, endDate];
   const subPeriods: SubPeriod[] = [];
   let cumProduct = 1;
   let validPeriods = 0;
@@ -147,7 +160,23 @@ export function computeTWR(
     const startSnap = buildSnapshot(txns, periodStart, pricesByDate[periodStart] ?? {});
     const endSnap = buildSnapshot(txns, periodEnd, pricesByDate[periodEnd] ?? {});
 
-    const startValue = startSnap.totalMarketValue;
+    // For sub-periods that start on a CONTRIBUTION date: the contribution cash arrived
+    // but may not yet be deployed into securities (BUYs may be 1–5 days later). Using
+    // totalMarketValue alone omits that cash from the denominator, inflating the return
+    // when those securities later appear in endValue. Add the undeployed contribution
+    // cash so the denominator correctly reflects all capital at risk.
+    let startValue = startSnap.totalMarketValue;
+    if (contributionDates.has(periodStart)) {
+      const contributedToday = txns
+        .filter((t) => t.trade_date === periodStart && t.action === "CONTRIBUTION")
+        .reduce((s, t) => s + Number(t.amount), 0);
+      const deployedToday = txns
+        .filter((t) => t.trade_date === periodStart && t.action === "BUY")
+        .reduce((s, t) => s + (Math.abs(Number(t.amount)) || Number(t.quantity) * Number(t.price)), 0);
+      const undeployedCash = Math.max(0, contributedToday - deployedToday);
+      startValue = startSnap.totalMarketValue + undeployedCash;
+    }
+
     const endValue = endSnap.totalMarketValue;
     if (startValue <= 0) continue;
 
@@ -186,7 +215,9 @@ export function computeTWR(
     (new Date(endDate + "T00:00:00Z").getTime() - new Date(startDate + "T00:00:00Z").getTime()) /
       86400000,
   );
-  const twrAnnualized = totalDays >= 365 ? Math.pow(1 + twr, 365 / totalDays) - 1 : null;
+  // Always annualize so Sharpe can be computed even for sub-year periods.
+  // The UI decides whether to display it (hides it for periods < 365 days).
+  const twrAnnualized = Math.pow(1 + twr, 365 / totalDays) - 1;
 
   const spyAtEnd = benchmarkPrices[endDate] ?? null;
   const benchmarkReturn = spyBase && spyAtEnd ? spyAtEnd / spyBase - 1 : null;
@@ -211,7 +242,8 @@ export function computeTWR(
   const endMV = new Map<string, number>(endSnap.holdings.map((h) => [h.symbol, h.marketValue]));
   const attrSymbols = new Set([...startMV.keys(), ...endMV.keys()]);
 
-  const attribution: AttributionRow[] = [];
+  type PartialRow = Omit<AttributionRow, "contribution">;
+  const partialRows: PartialRow[] = [];
   for (const sym of attrSymbols) {
     const startValue = startMV.get(sym) ?? 0;
     const endValue = endMV.get(sym) ?? 0;
@@ -233,16 +265,24 @@ export function computeTWR(
     const dollarsGained = endValue - startValue - netInvested;
     if (startValue === 0 && endValue === 0 && Math.abs(dollarsGained) < 1) continue;
 
-    attribution.push({
+    partialRows.push({
       symbol: sym,
       startValue,
       endValue,
       netInvested,
       dollarsGained,
-      positionReturn: startValue > 0 ? dollarsGained / startValue : 0,
-      contribution: startTotal > 0 ? dollarsGained / startTotal : 0,
+      positionReturn: startValue > 0 ? dollarsGained / startValue : (netInvested > 0 ? dollarsGained / netInvested : 0),
     });
   }
+
+  // Contribution = each position's share of total portfolio $ gain.
+  // Using totalDollarGain (not startTotal) keeps percentages meaningful even when
+  // the starting portfolio was tiny relative to mid-period inflows (e.g., Inception).
+  const totalDollarGain = partialRows.reduce((s, r) => s + r.dollarsGained, 0);
+  const attribution: AttributionRow[] = partialRows.map((r) => ({
+    ...r,
+    contribution: totalDollarGain !== 0 ? r.dollarsGained / Math.abs(totalDollarGain) : 0,
+  }));
   attribution.sort((a, b) => b.dollarsGained - a.dollarsGained);
 
   return {
@@ -254,16 +294,21 @@ export function computeTWR(
     volatility: null, // populated by the server fn
     maxDrawdown: null,
     sharpe: null,
+    moic: null,       // populated by the server fn
     riskFreeRate: 0.045,
     attribution,
     subPeriods,
     startValue: startTotal,
     endValue: endSnap.totalMarketValue,
     totalDays,
+    totalContributions: 0, // populated by the server fn
+    totalDistributions: 0, // populated by the server fn
     benchmarkReturn,
     benchmarkAnnualized,
     qqqReturn,
     qqqAnnualized,
+    beta: null,    // populated by the server fn
+    betaQQQ: null, // populated by the server fn
     chartPoints,
   };
 }

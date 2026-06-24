@@ -72,8 +72,13 @@ function EventRows({ events }: { events: DivEvent[] }) {
   );
 }
 
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function IncomePage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const fiveYearsAgo = `${Number(today.slice(0, 4)) - 5}-01-01`;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -121,6 +126,7 @@ function IncomePage() {
 
   // Totals
   const ttmTotal = positionIncome.reduce((s, p) => s + p.ttmReceived, 0);
+  // Expected annual = trailing yield × current market value for each position (forward estimate)
   const expectedAnnual = snapshot.holdings.reduce((s, h) => s + h.annualDividendIncome, 0);
   const dbDividendIncome = snapshot.dividendIncome + snapshot.interestIncome;
 
@@ -232,7 +238,9 @@ function IncomePage() {
                           : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-gain">
-                        {p.annualDividendIncome > 0 ? formatMoney(p.annualDividendIncome) : <span className="text-muted-foreground/40">—</span>}
+                        {p.annualDividendIncome > 0
+                          ? formatMoney(p.annualDividendIncome)
+                          : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-foreground">
                         {p.ttmReceived > 0 ? formatMoney(p.ttmReceived) : <span className="text-muted-foreground/40">—</span>}

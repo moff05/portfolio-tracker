@@ -235,12 +235,19 @@ export const getQuoteMetrics = createServerFn({ method: "POST" })
         const origSym = yhToOrig.get(r.symbol?.toUpperCase()) ?? r.symbol;
         out[origSym] = {
           beta: r.beta != null ? Number(r.beta) : null,
-          dividendYield:
-            r.trailingAnnualDividendYield != null
-              ? Number(r.trailingAnnualDividendYield)
-              : r.dividendYield != null
-                ? Number(r.dividendYield)
-                : null,
+          dividendYield: (() => {
+            // trailingAnnualDividendYield is always a decimal (0.07 = 7%).
+            // dividendYield (fallback, used for mutual funds) is sometimes a
+            // percentage (7.04 = 7.04%) — normalize any value > 1 to decimal.
+            const raw =
+              r.trailingAnnualDividendYield != null
+                ? Number(r.trailingAnnualDividendYield)
+                : r.dividendYield != null
+                  ? Number(r.dividendYield)
+                  : null;
+            if (raw == null) return null;
+            return raw > 1 ? raw / 100 : raw;
+          })(),
         };
       }
     } catch (e) {

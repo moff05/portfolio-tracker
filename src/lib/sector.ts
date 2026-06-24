@@ -101,6 +101,13 @@ const KNOWN_ETFS = new Set([
   "VIG", "SDY", "DVY", "VYM", "SCHD", "JEPI", "JEPQ",
 ]);
 
+// Bond-oriented ETFs — classify as "Bond Fund" rather than "Equity Fund"
+const BOND_ETFS = new Set([
+  "TLT", "HYG", "LQD", "AGG", "BND", "BIL", "SHY", "IEF",
+  "VCIT", "VCSH", "VMBS", "VGIT", "VGLT", "VGSH", "BNDX",
+  "EMB", "IGIB", "IGHG", "MUB", "SJNK", "JNK",
+]);
+
 export function getSector(symbol: string): string {
   // Normalize BRK-B → BRK.B so Yahoo-hyphenated tickers hit the map
   const normalized = symbol.replace(/-/g, ".");
@@ -119,5 +126,23 @@ export function getAssetClass(symbol: string): string {
   const normalized = symbol.replace(/-/g, ".");
   const match = SECTOR_MAP[symbol] ?? SECTOR_MAP[normalized];
   if (match && match !== "Funds" && match !== "Bond Funds") return "Equities";
+  return "Other";
+}
+
+/**
+ * 5-category allocation classification used on the dashboard allocation pie.
+ * Equity Direct = individual stock
+ * Equity Fund   = equity ETF or index fund
+ * Bond Direct   = individual bond (rare in this setup)
+ * Bond Fund     = bond ETF or bond mutual fund
+ * Cash          = handled separately by the caller
+ */
+export function getAllocClass(symbol: string): "Equity Direct" | "Equity Fund" | "Bond Direct" | "Bond Fund" | "Other" {
+  if (BOND_FUNDS.has(symbol) || FUND_REGEX.test(symbol)) return "Bond Fund";
+  if (BOND_ETFS.has(symbol)) return "Bond Fund";
+  if (KNOWN_ETFS.has(symbol)) return "Equity Fund";
+  const normalized = symbol.replace(/-/g, ".");
+  const match = SECTOR_MAP[symbol] ?? SECTOR_MAP[normalized];
+  if (match) return "Equity Direct";
   return "Other";
 }

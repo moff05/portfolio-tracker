@@ -15,7 +15,8 @@ export function AsOfDatePicker({
 }) {
   const [open, setOpen] = useState(false);
   const date = new Date(value + "T12:00:00");
-  const today = new Date().toISOString().slice(0, 10);
+  const _now = new Date();
+  const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}-${String(_now.getDate()).padStart(2,"0")}`;
   const isToday = value === today;
   return (
     <div className="flex items-center gap-2">
@@ -33,7 +34,8 @@ export function AsOfDatePicker({
             disabled={(d) => d > new Date()}
             onSelect={(d) => {
               if (d) {
-                onChange(d.toISOString().slice(0, 10));
+                const s = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                onChange(s);
                 setOpen(false);
               }
             }}

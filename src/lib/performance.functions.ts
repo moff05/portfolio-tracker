@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { isoAddDays } from "./portfolio";
 import { computeTWR, computeIRR } from "./twr";
-import { annualizedVolatility, maxDrawdown, sharpeRatio } from "./risk";
+import { annualizedVolatility, maxDrawdown, sharpeRatio, portfolioBeta } from "./risk";
 import { getRiskFreeRate } from "./prices.functions";
 import { buildResolver } from "./symbol-resolver";
 import { yahooChart } from "./prices.functions";
@@ -62,9 +62,41 @@ export const getPerformance = createServerFn({ method: "POST" })
       ),
     ).sort();
 
-    // Unique price dates needed: startDate, endDate, each CF date + day before each CF
+    // Detect in-kind transfers: BUY transactions not funded by contributions or sale proceeds.
+    // These are identified by the running cash balance going below -$100K.
+    // Key: after flagging a BUY as in-kind, add its amount BACK to runningCash so the
+    // detection baseline resets. Without this, the permanently-negative post-in-kind cash
+    // balance would falsely flag every subsequent normal BUY in the analysis period.
+    const IN_KIND_THRESHOLD = -100_000;
+    let runningCash = 0;
+    const inKindSet = new Set<string>(cfDates); // seed with existing CF dates to avoid dupes
+    const inKindBoundaries: string[] = [];
+    for (const t of txns) {
+      const amt = Math.abs(Number(t.amount) || 0);
+      if (t.action === "CONTRIBUTION" || t.action === "DIVIDEND" || t.action === "INTEREST") {
+        runningCash += amt;
+      } else if (t.action === "FEE") {
+        runningCash -= amt;
+      } else if (t.action === "SELL" || t.action === "DISTRIBUTION") {
+        runningCash += amt;
+      } else if (t.action === "BUY") {
+        runningCash -= amt;
+        if (runningCash < IN_KIND_THRESHOLD) {
+          // Unfunded BUY — treat as in-kind external inflow.
+          // Add back the amount so subsequent normal BUYs aren't also flagged.
+          runningCash += amt;
+          if (t.trade_date > startDate && t.trade_date < endDate && !inKindSet.has(t.trade_date)) {
+            inKindSet.add(t.trade_date);
+            inKindBoundaries.push(t.trade_date);
+          }
+        }
+      }
+    }
+    const extraBoundaries = [...inKindBoundaries].sort();
+
+    // Unique price dates needed: startDate, endDate, each CF/in-kind date + day before
     const priceDateSet = new Set<string>([startDate, endDate]);
-    for (const d of cfDates) {
+    for (const d of [...cfDates, ...extraBoundaries]) {
       priceDateSet.add(d);
       priceDateSet.add(isoAddDays(d, -1));
     }
@@ -85,40 +117,56 @@ export const getPerformance = createServerFn({ method: "POST" })
       "INSERT OR REPLACE INTO price_cache (symbol, as_of_date, close) VALUES (?, ?, ?)",
     );
 
-    // For each symbol: fetch the full range in one Yahoo call, cache, then distribute to price dates
-    const p1Unix = Math.floor(new Date(startDate + "T00:00:00Z").getTime() / 1000);
-    const p2Unix = Math.floor(new Date(endDate + "T23:59:59Z").getTime() / 1000) + 86400;
+    // Extend lookback 7 days before startDate so most-recent-≤ works on market holidays
+    // (e.g. YTD startDate = Jan 1 holiday needs Dec 31 price from cache)
+    const lookbackStart = isoAddDays(startDate, -7);
+    const p1Unix = Math.floor(new Date(lookbackStart + "T00:00:00Z").getTime() / 1000);
+    // No +86400: prevents fetching next-day pre-market data from Yahoo
+    const p2Unix = Math.floor(new Date(endDate + "T23:59:59Z").getTime() / 1000);
 
     await Promise.all(
       Array.from(allSymbols).map(async (sym) => {
         // Yahoo Finance uses hyphens for class-share tickers (BRK.B → BRK-B)
         const yhSym = sym.replace(".", "-");
 
-        // Load cached closes for this symbol over the range
+        // Load cached closes for this symbol — include 7-day lookback to handle holiday starts
         const cached = db
           .prepare(
             "SELECT as_of_date, close FROM price_cache WHERE symbol = ? AND as_of_date >= ? AND as_of_date <= ?",
           )
-          .all(yhSym, startDate, endDate) as { as_of_date: string; close: number }[];
+          .all(yhSym, lookbackStart, endDate) as { as_of_date: string; close: number }[];
 
         const closeMap = new Map<string, number>(cached.map((r) => [r.as_of_date, Number(r.close)]));
+        const cachedSortedDays = Array.from(closeMap.keys()).sort();
 
-        // Fetch from Yahoo to fill any gaps
-        try {
-          const result = await yahooChart(yhSym, p1Unix, p2Unix);
-          const timestamps: number[] = result.timestamp ?? [];
-          const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
-          for (let i = 0; i < timestamps.length; i++) {
-            const date = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
-            const close = closes[i];
-            if (close != null && close > 0 && !closeMap.has(date)) {
-              closeMap.set(date, Number(close));
-              try {
-                upsert.run(yhSym, date, Number(close));
-              } catch { /* non-fatal cache write */ }
-            }
+        // Only hit Yahoo if cache has a price within 7 trading days before each needed date
+        const allCached = priceDates.every(pd => {
+          const cutoff = isoAddDays(pd, -7);
+          for (const d of cachedSortedDays) {
+            if (d > pd) break;
+            if (d >= cutoff) return true;
           }
-        } catch { /* symbol may not trade on Yahoo — skip */ }
+          return false;
+        });
+
+        if (!allCached) {
+          try {
+            const result = await yahooChart(yhSym, p1Unix, p2Unix);
+            const timestamps: number[] = result.timestamp ?? [];
+            const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+            for (let i = 0; i < timestamps.length; i++) {
+              const date = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
+              if (date > endDate) continue; // never cache future-dated prices
+              const close = closes[i];
+              if (close != null && close > 0 && !closeMap.has(date)) {
+                closeMap.set(date, Number(close));
+                try {
+                  upsert.run(yhSym, date, Number(close));
+                } catch { /* non-fatal cache write */ }
+              }
+            }
+          } catch { /* symbol may not trade on Yahoo — skip */ }
+        }
 
         // For each price date, use the most recent close on or before that date
         const sortedDays = Array.from(closeMap.keys()).sort();
@@ -142,10 +190,12 @@ export const getPerformance = createServerFn({ method: "POST" })
       if (prices["QQQ"]) benchmarkPricesQQQ[date] = prices["QQQ"];
     }
 
-    const result = computeTWR(txns, startDate, endDate, pricesByDate, benchmarkPrices, benchmarkPricesQQQ);
+    const result = computeTWR(txns, startDate, endDate, pricesByDate, benchmarkPrices, benchmarkPricesQQQ, extraBoundaries);
 
     // IRR (dollar-weighted return): start value as outflow, end value as inflow,
     // with contributions/distributions as intermediate flows.
+    let totalContributions = 0;
+    let totalDistributions = 0;
     if (result.startValue > 0) {
       const irrFlows: { date: string; amount: number }[] = [
         { date: startDate, amount: -result.startValue },
@@ -153,23 +203,36 @@ export const getPerformance = createServerFn({ method: "POST" })
       for (const t of txns) {
         if (t.trade_date <= startDate || t.trade_date > endDate) continue;
         if (t.action === "CONTRIBUTION") {
-          irrFlows.push({ date: t.trade_date, amount: -Math.abs(Number(t.amount)) });
+          const amt = Math.abs(Number(t.amount));
+          totalContributions += amt;
+          irrFlows.push({ date: t.trade_date, amount: -amt });
         } else if (t.action === "DISTRIBUTION") {
-          irrFlows.push({ date: t.trade_date, amount: Math.abs(Number(t.amount)) });
+          const amt = Math.abs(Number(t.amount));
+          totalDistributions += amt;
+          irrFlows.push({ date: t.trade_date, amount: amt });
         }
       }
       irrFlows.push({ date: endDate, amount: result.endValue });
       result.irr = computeIRR(irrFlows);
     }
+    result.totalContributions = totalContributions;
+    result.totalDistributions = totalDistributions;
+
+    // MOIC = (ending value + distributions returned) / (starting value + contributions invested)
+    const totalIn = result.startValue + totalContributions;
+    const totalOut = result.endValue + totalDistributions;
+    result.moic = totalIn > 0 ? totalOut / totalIn : null;
 
     // Risk metrics — computed from the sub-period series already in hand
     const rfr = await getRiskFreeRate();
     result.riskFreeRate = rfr;
     result.volatility = annualizedVolatility(result.subPeriods);
     result.maxDrawdown = maxDrawdown(result.chartPoints);
-    if (result.twrAnnualized != null && result.volatility != null) {
+    if (result.volatility != null) {
       result.sharpe = sharpeRatio(result.twrAnnualized, result.volatility, rfr);
     }
+    result.beta = portfolioBeta(result.subPeriods, benchmarkPrices);
+    result.betaQQQ = portfolioBeta(result.subPeriods, benchmarkPricesQQQ);
 
     return result;
   });
@@ -179,8 +242,8 @@ export const getPerformance = createServerFn({ method: "POST" })
  * Returns one data point per month-end, computed from transaction history × cached prices.
  */
 export const getNavHistory = createServerFn({ method: "GET" })
-  .inputValidator((d: { account?: string | null }) =>
-    z.object({ account: z.string().nullable().optional() }).parse(d ?? {}),
+  .inputValidator((d: { account?: string | null; maxDate?: string }) =>
+    z.object({ account: z.string().nullable().optional(), maxDate: z.string().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data }) => {
   const { getDb } = await import("@/lib/db.server");
@@ -199,10 +262,15 @@ export const getNavHistory = createServerFn({ method: "GET" })
   }));
 
   const inceptionDate: string = txns[0].trade_date;
-  const today = new Date().toISOString().slice(0, 10);
+
+  const _now = new Date();
+  const serverToday = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}-${String(_now.getDate()).padStart(2,"0")}`;
+  // Client passes its local date to resolve server/client timezone ambiguity; use the earlier of the two
+  const today = (data?.maxDate && data.maxDate <= serverToday) ? data.maxDate : serverToday;
+  const _oya = new Date(Date.now() - 365 * 86400_000);
+  const oneYearAgo = `${_oya.getFullYear()}-${String(_oya.getMonth()+1).padStart(2,"0")}-${String(_oya.getDate()).padStart(2,"0")}`;
 
   // Hybrid date spine: monthly from inception to 1 year ago, daily for the last year
-  const oneYearAgo = new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10);
   const dates: string[] = [];
 
   // Monthly dates for older history
@@ -216,13 +284,11 @@ export const getNavHistory = createServerFn({ method: "GET" })
     if (month > 12) { month = 1; year++; }
   }
 
-  // Daily dates for the last year
-  for (
-    let d = new Date(oneYearAgo + "T00:00:00Z");
-    d.toISOString().slice(0, 10) <= today;
-    d.setDate(d.getDate() + 1)
-  ) {
-    dates.push(d.toISOString().slice(0, 10));
+  // Daily dates for the last year — use local date throughout to avoid UTC-offset bugs
+  for (let d = new Date(oneYearAgo); ; d.setDate(d.getDate() + 1)) {
+    const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    if (dStr > today) break;
+    dates.push(dStr);
   }
 
   // Unique symbols ever traded
@@ -232,8 +298,13 @@ export const getNavHistory = createServerFn({ method: "GET" })
   }
   if (symbols.size === 0) return [] as { date: string; value: number }[];
 
+  // Purge any price_cache rows with future dates — these accumulate when the previous
+  // code queried Yahoo with an extra +86400 offset and stored tomorrow's data
+  try { db.prepare("DELETE FROM price_cache WHERE as_of_date > ?").run(today); } catch { /* non-fatal */ }
+
   const p1Unix = Math.floor(new Date(inceptionDate + "T00:00:00Z").getTime() / 1000);
-  const p2Unix = Math.floor(new Date(today + "T23:59:59Z").getTime() / 1000) + 86400;
+  // No +86400: querying beyond today causes Yahoo to return pre-market "next day" data
+  const p2Unix = Math.floor(new Date(today + "T23:59:59Z").getTime() / 1000);
 
   const upsert = db.prepare("INSERT OR REPLACE INTO price_cache (symbol, as_of_date, close) VALUES (?, ?, ?)");
 
@@ -254,6 +325,7 @@ export const getNavHistory = createServerFn({ method: "GET" })
       const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
       for (let i = 0; i < timestamps.length; i++) {
         const date = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
+        if (date > today) continue; // never cache future-dated prices
         const close = closes[i];
         if (close != null && close > 0 && !closeMap.has(date)) {
           closeMap.set(date, Number(close));

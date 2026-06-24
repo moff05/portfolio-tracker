@@ -86,6 +86,7 @@ export function parsePortfolioExcel(buffer: ArrayBuffer, accountName?: string): 
     const data = XLSX.utils.sheet_to_json<any[]>(thSheet, {
       header: 1,
       defval: null,
+      // @ts-expect-error: xlsx 0.18.5 types omit cellDates but it exists at runtime
       cellDates: true,
     });
 
@@ -144,6 +145,7 @@ export function parsePortfolioExcel(buffer: ArrayBuffer, accountName?: string): 
     const data = XLSX.utils.sheet_to_json<any[]>(rsSheet, {
       header: 1,
       defval: null,
+      // @ts-expect-error: xlsx 0.18.5 types omit cellDates but it exists at runtime
       cellDates: true,
     });
 
