@@ -1,6 +1,6 @@
 {
   "name": "portfolio-tracker",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Self-hosted portfolio tracking app — holdings, performance, and P&L from broker exports",
   "author": "Nicholas Moffett",
   "private": true,
@@ -30,7 +30,8 @@
     ],
     "asar": false,
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "Portfolio-Tracker-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
