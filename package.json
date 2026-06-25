@@ -1,6 +1,6 @@
 {
   "name": "portfolio-tracker",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "description": "Self-hosted portfolio tracking app — holdings, performance, and P&L from broker exports",
   "author": "Nicholas Moffett",
   "private": true,
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "com.portfoliotracker.app",
-    "productName": "Portfolio Tracker",
+    "productName": "Portfolio Manager",
     "directories": {
       "output": "release"
     },

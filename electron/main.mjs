@@ -8,6 +8,11 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const isDev = !app.isPackaged;
 const PORT = 3847;
 
+// Keep userData path stable regardless of productName — prevents DB loss on renames
+if (app.isPackaged) {
+  app.setPath('userData', join(app.getPath('appData'), 'Portfolio Tracker'));
+}
+
 let mainWindow = null;
 let serverProc = null;
 
@@ -86,7 +91,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     autoHideMenuBar: true,
-    title: 'Portfolio Tracker',
+    title: 'Portfolio Manager',
     show: false,
     backgroundColor: '#09090b',
     webPreferences: {
