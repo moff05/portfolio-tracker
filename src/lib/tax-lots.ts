@@ -15,6 +15,7 @@ export type LotDisposal = {
   symbol: string;
   acquiredDate: string;
   disposedDate: string;
+  sellTxnId: string;
   qtyDisposed: number;
   costPerShare: number;
   proceedsPerShare: number;
@@ -100,6 +101,7 @@ export function buildLots(
           symbol: sym,
           acquiredDate: lot.acquiredDate,
           disposedDate: t.trade_date,
+          sellTxnId: t.id,
           qtyDisposed: consumed,
           costPerShare: lot.costPerShare,
           proceedsPerShare: pps,

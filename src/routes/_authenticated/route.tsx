@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
-import { LineChart, Briefcase, Receipt, FileText, BarChart3, Upload, TrendingUp, Scissors, DollarSign, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { LineChart, Briefcase, Receipt, FileText, BarChart3, Upload, TrendingUp, Scissors, DollarSign, SlidersHorizontal, ChevronDown, BookOpen, BookMarked, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatPanel } from "@/components/ChatPanel";
 import { AccountFilterProvider, useAccountFilter } from "@/lib/account-filter";
@@ -11,33 +11,49 @@ export const Route = createFileRoute("/_authenticated")({
   component: AppLayout,
 });
 
-const navSections = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  search?: Record<string, string>;
+};
+
+const navSections: { label: string; items: NavItem[] }[] = [
   {
     label: "Overview",
     items: [
-      { to: "/dashboard", label: "Dashboard", icon: LineChart },
+      { to: "/dashboard",   label: "Dashboard",   icon: LineChart },
       { to: "/performance", label: "Performance", icon: TrendingUp },
     ],
   },
   {
     label: "Portfolio",
     items: [
-      { to: "/holdings", label: "Holdings", icon: Briefcase },
-      { to: "/income", label: "Income", icon: DollarSign },
-      { to: "/sp500", label: "Indices", icon: BarChart3 },
+      { to: "/holdings",    label: "Holdings",    icon: Briefcase },
+      { to: "/income",      label: "Income",      icon: DollarSign },
+      { to: "/sp500",       label: "Indices",     icon: BarChart3 },
       { to: "/rebalancing", label: "Rebalancing", icon: SlidersHorizontal },
-      { to: "/tax-loss", label: "Tax Loss", icon: Scissors },
-      { to: "/statement", label: "Capital Statement", icon: FileText },
+      { to: "/tax-loss",    label: "Tax Loss",    icon: Scissors },
+    ],
+  },
+  {
+    label: "Financials",
+    items: [
+      { to: "/financials", search: { tab: "capital" }, label: "Capital Statement",  icon: FileText },
+      { to: "/financials", search: { tab: "income"  }, label: "Income Statement",   icon: TrendingUp },
+      { to: "/financials", search: { tab: "balance" }, label: "Balance Sheet",      icon: Scale },
+      { to: "/financials", search: { tab: "ledger"  }, label: "General Ledger",     icon: BookOpen },
+      { to: "/financials", search: { tab: "coa"     }, label: "Chart of Accounts",  icon: BookMarked },
     ],
   },
   {
     label: "Data",
     items: [
       { to: "/transactions", label: "Transactions", icon: Receipt },
-      { to: "/upload", label: "Upload", icon: Upload },
+      { to: "/upload",       label: "Upload",       icon: Upload },
     ],
   },
-] as const;
+];
 
 function AccountSelector() {
   const { account, setAccount } = useAccountFilter();
@@ -145,12 +161,17 @@ function AppLayout() {
                 </p>
                 <div className="space-y-0.5">
                   {section.items.map((item) => {
-                    const active = location.pathname.startsWith(item.to);
+                    const searchParams = new URLSearchParams(location.search);
+                    const active = item.search
+                      ? location.pathname === item.to &&
+                        Object.entries(item.search).every(([k, v]) => searchParams.get(k) === v)
+                      : location.pathname.startsWith(item.to);
                     const Icon = item.icon;
                     return (
                       <Link
-                        key={item.to}
-                        to={item.to}
+                        key={item.to + (item.search?.tab ?? "")}
+                        to={item.to as any}
+                        search={item.search as any}
                         className={cn(
                           "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors",
                           active

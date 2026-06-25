@@ -14,13 +14,13 @@ let serverProc = null;
 function getDistPath() {
   return isDev
     ? join(__dirname, '..', 'dist')
-    : join(process.resourcesPath, 'app', 'dist');
+    : join(process.resourcesPath, 'app.asar.unpacked', 'dist');
 }
 
 function getServerScript() {
   return isDev
     ? join(__dirname, 'server.mjs')
-    : join(process.resourcesPath, 'app', 'electron', 'server.mjs');
+    : join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'server.mjs');
 }
 
 function getDbPath() {
@@ -64,6 +64,21 @@ function startServer() {
   });
 }
 
+function createSplashWindow() {
+  const splash = new BrowserWindow({
+    width: 380,
+    height: 260,
+    frame: false,
+    resizable: false,
+    center: true,
+    skipTaskbar: true,
+    backgroundColor: '#09090b',
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  splash.loadFile(join(__dirname, 'splash.html'));
+  return splash;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -72,13 +87,14 @@ function createWindow() {
     minHeight: 600,
     autoHideMenuBar: true,
     title: 'Portfolio Tracker',
+    show: false,
+    backgroundColor: '#09090b',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  mainWindow.loadURL(`http://127.0.0.1:${PORT}/dashboard`);
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -113,12 +129,20 @@ function setupAutoUpdater() {
 }
 
 app.whenReady().then(async () => {
+  const splash = createSplashWindow();
+  createWindow();
+
   try {
     await startServer();
-    createWindow();
-    if (!isDev) setupAutoUpdater();
+    mainWindow.loadURL(`http://127.0.0.1:${PORT}/dashboard`);
+    mainWindow.once('ready-to-show', () => {
+      mainWindow.show();
+      splash.destroy();
+      if (!isDev) setupAutoUpdater();
+    });
   } catch (err) {
     console.error('[main] Failed to start server:', err);
+    splash.destroy();
     app.quit();
   }
 });

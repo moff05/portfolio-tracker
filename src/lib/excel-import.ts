@@ -140,7 +140,8 @@ export function parsePortfolioExcel(buffer: ArrayBuffer, accountName?: string): 
   // Col indices (0-based):
   //  1=PostDate  2=TxnType  3=CUSIP  4=Description
   //  5=Units  6=Price  7=CostBasis  8=IncomeCash  9=PrincipalCash
-  const rsSheet = wb.Sheets["Realized Sales"];
+  // "Realized Sales" is the standard Fifth Third sheet name; some exports use "Transaction History (2)"
+  const rsSheet = wb.Sheets["Realized Sales"] ?? wb.Sheets["Transaction History (2)"];
   if (rsSheet) {
     const data = XLSX.utils.sheet_to_json<any[]>(rsSheet, {
       header: 1,
