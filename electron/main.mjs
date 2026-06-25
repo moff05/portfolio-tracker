@@ -122,7 +122,8 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-downloaded', () => {
     if (mainWindow) mainWindow.setProgressBar(-1);
-    notify('Update ready', 'Close and reopen Portfolio Tracker to finish installing.');
+    notify('Update installing…', 'Portfolio Tracker will restart automatically in a few seconds.');
+    setTimeout(() => autoUpdater.quitAndInstall(true, true), 4000);
   });
 
   autoUpdater.checkForUpdatesAndNotify();
