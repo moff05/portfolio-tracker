@@ -15,8 +15,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "@tanstack/react-router", "@tanstack/react-start"],
   },
   ssr: {
-    // bun:sqlite must be external so the Electron production bundle doesn't
-    // try to inline it (it doesn't exist in Node.js)
     external: ["bun:sqlite"],
+    noExternal: true,
   },
 });

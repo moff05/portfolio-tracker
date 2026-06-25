@@ -14,13 +14,13 @@ let serverProc = null;
 function getDistPath() {
   return isDev
     ? join(__dirname, '..', 'dist')
-    : join(app.getAppPath(), 'dist');
+    : join(process.resourcesPath, 'app.asar.unpacked', 'dist');
 }
 
 function getServerScript() {
   return isDev
     ? join(__dirname, 'server.mjs')
-    : join(app.getAppPath(), 'electron', 'server.mjs');
+    : join(process.resourcesPath, 'app.asar.unpacked', 'electron', 'server.mjs');
 }
 
 function getDbPath() {
