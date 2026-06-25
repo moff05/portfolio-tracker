@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { X, Send, Loader2, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -169,7 +169,7 @@ export function ChatPanel() {
                 </div>
                 <p className="font-medium text-sm mb-1">Ask about your portfolio</p>
                 <p className="text-xs text-muted-foreground mb-5">
-                  Live prices · all holdings · transaction history
+                  Live prices Â· all holdings Â· transaction history
                 </p>
                 <div className="w-full space-y-2">
                   {SUGGESTIONS.map((s) => (
@@ -236,7 +236,7 @@ export function ChatPanel() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 88) + "px";
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything about your portfolio…"
+                placeholder="Ask anything about your portfolioâ€¦"
                 disabled={isLoading}
                 rows={1}
                 style={{ height: "22px" }}
@@ -255,7 +255,7 @@ export function ChatPanel() {
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground/60 mt-1.5 text-center">
-              Enter to send · Shift+Enter for new line
+              Enter to send Â· Shift+Enter for new line
             </p>
           </div>
         </div>
@@ -263,3 +263,4 @@ export function ChatPanel() {
     </>
   );
 }
+

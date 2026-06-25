@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePortfolio } from "@/hooks/use-portfolio";
@@ -35,7 +35,7 @@ const TAB_TITLES: Record<string, string> = {
   coa:     "Chart of Accounts",
 };
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const todayIso = () => {
   const d = new Date();
@@ -56,7 +56,7 @@ function firstDayOfMonth(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}-01`;
 }
 
-// ─── Page root ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Page root â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function FinancialsPage() {
   const { tab } = Route.useSearch();
@@ -98,7 +98,7 @@ function FinancialsPage() {
   );
 }
 
-// ─── Tab 1: Capital Statement ─────────────────────────────────────────────────
+// â”€â”€â”€ Tab 1: Capital Statement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CapitalTab({
   txns,
@@ -126,7 +126,7 @@ function CapitalTab({
   const isToday     = effectiveEnd === today;
 
   // When the period ends today, reuse the prices already in the portfolio snapshot
-  // so the ending capital ties exactly to the dashboard — no separate API call needed.
+  // so the ending capital ties exactly to the dashboard â€” no separate API call needed.
   const snapshotPrices = useMemo(() => {
     if (!isToday) return null;
     const m: Record<string, number> = {};
@@ -193,7 +193,7 @@ function CapitalTab({
   const years: number[] = [];
   for (let y = currentYear; y >= currentYear - 10; y--) years.push(y);
 
-  const periodLabel = `${MONTH_NAMES[startMonth - 1]} ${startYear} — ${MONTH_NAMES[endMonth - 1]} ${endYear}`;
+  const periodLabel = `${MONTH_NAMES[startMonth - 1]} ${startYear} â€” ${MONTH_NAMES[endMonth - 1]} ${endYear}`;
 
   return (
     <div className="space-y-6">
@@ -245,9 +245,9 @@ function CapitalTab({
           <div className="text-xs font-medium uppercase tracking-widest">Statement of Partner's Capital</div>
           <div className="text-xl font-semibold text-foreground mt-2">{periodLabel}</div>
           <div className="text-xs mt-1">
-            {start} — {effectiveEnd}{effectiveEnd !== endNominal && " (to-date)"}
+            {start} â€” {effectiveEnd}{effectiveEnd !== endNominal && " (to-date)"}
           </div>
-          {isLoading && <div className="text-xs mt-2 animate-pulse">Loading prices…</div>}
+          {isLoading && <div className="text-xs mt-2 animate-pulse">Loading pricesâ€¦</div>}
         </div>
 
         <table className="w-full">
@@ -278,7 +278,7 @@ function CapitalTab({
   );
 }
 
-// ─── Tab 2: Income Statement ──────────────────────────────────────────────────
+// â”€â”€â”€ Tab 2: Income Statement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function IncomeStatementTab({ snapshot }: { snapshot: PortfolioSnapshot }) {
   const gross = snapshot.realizedGain + snapshot.dividendIncome + snapshot.interestIncome;
@@ -342,7 +342,7 @@ function IncomeStatementTab({ snapshot }: { snapshot: PortfolioSnapshot }) {
                     "py-1.5 text-right font-mono tabular-nums text-sm",
                     row.value === 0 ? "text-muted-foreground/40" : row.value < 0 ? "text-loss" : "text-gain",
                   )}>
-                    {row.value === 0 ? "—" : formatMoney(row.value)}
+                    {row.value === 0 ? "â€”" : formatMoney(row.value)}
                   </td>
                 </tr>
               ))}
@@ -363,7 +363,7 @@ function IncomeStatementTab({ snapshot }: { snapshot: PortfolioSnapshot }) {
   );
 }
 
-// ─── Tab 3: Balance Sheet ─────────────────────────────────────────────────────
+// â”€â”€â”€ Tab 3: Balance Sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function BalanceSheetTab({
   snapshot,
@@ -407,7 +407,7 @@ function BalanceSheetTab({
             return (
               <tr key={h.symbol}>
                 <td className="py-0.5 pl-10 text-xs text-muted-foreground">
-                  {h.symbol} — {h.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} sh @ ${h.marketPrice.toFixed(2)} (Acct {acct})
+                  {h.symbol} â€” {h.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} sh @ ${h.marketPrice.toFixed(2)} (Acct {acct})
                 </td>
                 <td className="py-0.5 text-right font-mono tabular-nums text-xs">{formatMoney(h.marketValue)}</td>
               </tr>
@@ -426,7 +426,7 @@ function BalanceSheetTab({
           </tr>
           <tr>
             <td className="py-1.5 pl-5 text-sm text-muted-foreground/50">(None tracked)</td>
-            <td className="py-1.5 text-right font-mono tabular-nums text-sm text-muted-foreground/40">—</td>
+            <td className="py-1.5 text-right font-mono tabular-nums text-sm text-muted-foreground/40">â€”</td>
           </tr>
           <tr className="border-t border-border/60">
             <td className="py-2.5 text-sm font-semibold text-foreground">Total Liabilities</td>
@@ -489,14 +489,14 @@ function BalanceSheetTab({
 
       <div className={cn("mt-4 pt-4 border-t border-border/40 flex items-center gap-2 text-sm font-medium", balanced ? "text-emerald-500" : "text-amber-500")}>
         {balanced
-          ? <><CheckCircle2 className="w-4 h-4 shrink-0" /> Balanced — Assets = Liabilities + Equity</>
+          ? <><CheckCircle2 className="w-4 h-4 shrink-0" /> Balanced â€” Assets = Liabilities + Equity</>
           : <><AlertCircle className="w-4 h-4 shrink-0" /> Out of balance by {formatMoney(Math.abs(totalAssets - totalEquity))}</>}
       </div>
     </Card>
   );
 }
 
-// ─── Tab 4: General Ledger ────────────────────────────────────────────────────
+// â”€â”€â”€ Tab 4: General Ledger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const GL_ACTIONS = ["BUY", "SELL", "DIVIDEND", "INTEREST", "CONTRIBUTION", "DISTRIBUTION", "FEE"] as const;
 
@@ -567,7 +567,7 @@ function GeneralLedgerTab({ glEntries, fullCOA }: { glEntries: GLEntry[]; fullCO
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search description or symbol…"
+            placeholder="Search description or symbolâ€¦"
             className="pl-8 pr-8 h-8 text-sm"
           />
           {search && (
@@ -646,7 +646,7 @@ function GeneralLedgerTab({ glEntries, fullCOA }: { glEntries: GLEntry[]; fullCO
                   </span>
                 </TableCell>
                 <TableCell className="text-sm max-w-[200px] truncate">{e.description}</TableCell>
-                <TableCell className="text-sm font-medium text-foreground">{e.symbol ?? "—"}</TableCell>
+                <TableCell className="text-sm font-medium text-foreground">{e.symbol ?? "â€”"}</TableCell>
                 <TableCell className="text-xs font-mono text-muted-foreground">{getAccountName(e.debitAccount, fullCOA)}</TableCell>
                 <TableCell className="text-right tabular-nums text-sm">{formatMoney(e.amount)}</TableCell>
                 <TableCell className="text-xs font-mono text-muted-foreground">{getAccountName(e.creditAccount, fullCOA)}</TableCell>
@@ -674,7 +674,7 @@ function GeneralLedgerTab({ glEntries, fullCOA }: { glEntries: GLEntry[]; fullCO
               <span>Dr: {formatMoney(totalDebits)}</span>
               <span>Cr: {formatMoney(totalCredits)}</span>
               <span className={booksBalance ? "text-emerald-500" : "text-rose-500"}>
-                {booksBalance ? "✓ Balanced" : `⚠ Δ ${formatMoney(Math.abs(totalDebits - totalCredits))}`}
+                {booksBalance ? "âœ“ Balanced" : `âš  Î” ${formatMoney(Math.abs(totalDebits - totalCredits))}`}
               </span>
             </div>
           </div>
@@ -684,7 +684,7 @@ function GeneralLedgerTab({ glEntries, fullCOA }: { glEntries: GLEntry[]; fullCO
   );
 }
 
-// ─── Tab 5: Chart of Accounts ─────────────────────────────────────────────────
+// â”€â”€â”€ Tab 5: Chart of Accounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CATEGORY_ORDER: AccountEntry["category"][] = ["asset", "liability", "equity", "income", "expense"];
 const CATEGORY_LABELS: Record<AccountEntry["category"], string> = {
@@ -750,12 +750,12 @@ function ChartOfAccountsTab({ fullCOA, glEntries }: { fullCOA: AccountEntry[]; g
                       <TableCell className="text-sm text-foreground">{acct.name}</TableCell>
                       <TableCell className="text-sm capitalize">{acct.category}</TableCell>
                       <TableCell className="text-sm">{acct.normalBalance === "debit" ? "Dr" : "Cr"}</TableCell>
-                      <TableCell className="text-right text-sm tabular-nums">{cnt > 0 ? cnt : "—"}</TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">{cnt > 0 ? cnt : "â€”"}</TableCell>
                       <TableCell className={cn(
                         "text-right tabular-nums text-sm font-medium",
                         cnt === 0 ? "text-muted-foreground/40" : bal < 0 ? "text-loss" : "text-foreground",
                       )}>
-                        {cnt > 0 ? formatMoney(bal) : "—"}
+                        {cnt > 0 ? formatMoney(bal) : "â€”"}
                       </TableCell>
                     </TableRow>
                   );
@@ -766,8 +766,9 @@ function ChartOfAccountsTab({ fullCOA, glEntries }: { fullCOA: AccountEntry[]; g
         </TableBody>
       </Table>
       <div className="px-4 py-3 border-t border-border/40 text-xs text-muted-foreground/60 italic">
-        Account 1000 (Cash) may show a negative balance. This is an accounting artifact: securities received as in-kind contributions were recorded as purchases (cash outflow) without a matching cash deposit. The negative cash exactly offsets the cost basis of those transferred positions — it does not reflect an actual cash shortfall.
+        Account 1000 (Cash) may show a negative balance. This is an accounting artifact: securities received as in-kind contributions were recorded as purchases (cash outflow) without a matching cash deposit. The negative cash exactly offsets the cost basis of those transferred positions â€” it does not reflect an actual cash shortfall.
       </div>
     </Card>
   );
 }
+

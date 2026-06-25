@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+﻿import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 const STORAGE_KEY = "selectedAccount";
 
@@ -35,3 +35,4 @@ export function AccountFilterProvider({ children }: { children: ReactNode }) {
 export function useAccountFilter() {
   return useContext(AccountFilterContext);
 }
+

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { getHistoricalCloses, getQuotes } from "@/lib/prices.functions";
 import { buildPeriodActivity, quarterBounds, isoAddDays } from "@/lib/portfolio";
@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { formatMoney } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/_authenticated/upload")({
-  head: () => ({ meta: [{ title: "Upload — Portfolio Tracker" }] }),
+  head: () => ({ meta: [{ title: "Upload â€” Portfolio Manager" }] }),
   component: UploadPage,
 });
 
@@ -112,7 +112,7 @@ function ExportFromUploadButton({ quarter, year }: { quarter: 1|2|3|4; year: num
       {exporting || pricesLoading
         ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
         : <FileDown className="w-3.5 h-3.5 mr-1.5" />}
-      {pricesLoading ? "Loading prices…" : "Download PDF"}
+      {pricesLoading ? "Loading pricesâ€¦" : "Download PDF"}
     </Button>
   );
 }
@@ -187,11 +187,11 @@ function MappingStep({
         </div>
         {detectedBroker ? (
           <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-gain/15 text-gain">
-            Detected: {detectedBroker.name} ✓
+            Detected: {detectedBroker.name} âœ“
           </span>
         ) : (
           <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400">
-            Unknown format — map columns below
+            Unknown format â€” map columns below
           </span>
         )}
         <button onClick={onReset} className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
@@ -233,7 +233,7 @@ function MappingStep({
         <p className="text-xs text-muted-foreground mt-3">* Required fields</p>
       </Card>
 
-      {/* Action mapping — only show when an action column is selected */}
+      {/* Action mapping â€” only show when an action column is selected */}
       {columnMap.action && actionValues.length > 0 && (
         <Card className="p-4">
           <div className="font-medium text-sm text-foreground mb-1">Action mapping</div>
@@ -256,7 +256,7 @@ function MappingStep({
                   <SelectContent>
                     {ALL_ACTIONS.map((a) => (
                       <SelectItem key={a} value={a} className="text-xs">
-                        {a === "skip" ? "— skip" : a}
+                        {a === "skip" ? "â€” skip" : a}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -290,7 +290,7 @@ function MappingStep({
                   <TableCell>
                     <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${actionBadge(r.action)}`}>{r.action}</span>
                   </TableCell>
-                  <TableCell className="text-xs font-medium text-foreground">{r.symbol ?? "—"}</TableCell>
+                  <TableCell className="text-xs font-medium text-foreground">{r.symbol ?? "â€”"}</TableCell>
                   <TableCell className="text-xs max-w-[180px] truncate">{r.description ?? ""}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">{formatMoney(r.amount)}</TableCell>
                 </TableRow>
@@ -436,13 +436,13 @@ function UploadPage() {
           setSkippedCount(0);
           setStage("preview");
           setReading(false);
-          toast.success(`Parsed ${parsed.rows.length} transactions — review and import.`);
+          toast.success(`Parsed ${parsed.rows.length} transactions â€” review and import.`);
           return;
         }
       } catch { /* fall through to generic */ }
     }
 
-    // OFX (v1 SGML or v2 XML) — supported by Fidelity, Schwab, Vanguard, IBKR, etc.
+    // OFX (v1 SGML or v2 XML) â€” supported by Fidelity, Schwab, Vanguard, IBKR, etc.
     if (ext === "ofx" || ext === "qfx") {
       try {
         const text = await file.text();
@@ -453,7 +453,7 @@ function UploadPage() {
           setSkippedCount(0);
           setStage("preview");
           setReading(false);
-          toast.success(`Parsed ${parsed.rows.length} transactions from OFX — review and import.`);
+          toast.success(`Parsed ${parsed.rows.length} transactions from OFX â€” review and import.`);
           return;
         }
         toast.error("No transactions found in this OFX file.");
@@ -521,14 +521,14 @@ function UploadPage() {
       accountName.trim() || null,
     );
     if (parsed.length === 0) {
-      toast.error(`No transactions could be parsed. ${skipped} rows were skipped — check your column and action mappings.`);
+      toast.error(`No transactions could be parsed. ${skipped} rows were skipped â€” check your column and action mappings.`);
       return;
     }
     setRows(parsed);
     setSkippedCount(skipped);
     setErrors([]);
     setStage("preview");
-    toast.success(`Parsed ${parsed.length} transactions${skipped > 0 ? ` (${skipped} skipped)` : ""} — review and import.`);
+    toast.success(`Parsed ${parsed.length} transactions${skipped > 0 ? ` (${skipped} skipped)` : ""} â€” review and import.`);
   }
 
   const actionCounts = rows.reduce<Record<string, number>>((acc, r) => {
@@ -545,7 +545,7 @@ function UploadPage() {
         </p>
       </div>
 
-      {/* File picker — only shown in idle stage */}
+      {/* File picker â€” only shown in idle stage */}
       {stage === "idle" && (
         <Card className="p-6 border-dashed border-2">
           <div className="flex items-center gap-2.5 mb-5 max-w-xs">
@@ -565,10 +565,10 @@ function UploadPage() {
             </div>
             <div className="text-center">
               <div className="font-medium text-foreground">
-                {reading ? "Reading file…" : "Choose a file"}
+                {reading ? "Reading fileâ€¦" : "Choose a file"}
               </div>
               {!reading && (
-                <div className="text-xs mt-1">.xlsx or .csv — Fidelity, Schwab, Vanguard, Robinhood, E*TRADE and more</div>
+                <div className="text-xs mt-1">.xlsx or .csv â€” Fidelity, Schwab, Vanguard, Robinhood, E*TRADE and more</div>
               )}
             </div>
             <input
@@ -579,7 +579,7 @@ function UploadPage() {
               disabled={reading}
             />
             <Button type="button" asChild disabled={reading}>
-              <span>{reading ? "Reading…" : "Select file"}</span>
+              <span>{reading ? "Readingâ€¦" : "Select file"}</span>
             </Button>
           </label>
         </Card>
@@ -654,7 +654,7 @@ function UploadPage() {
                   {filename}
                 </div>
               )}
-              <span className="text-sm">—&nbsp;{rows.length} transactions</span>
+              <span className="text-sm">â€”&nbsp;{rows.length} transactions</span>
               {Object.entries(actionCounts).map(([k, v]) => (
                 <span key={k} className={`text-xs px-1.5 py-0.5 rounded font-medium ${actionBadge(k)}`}>{v} {k}</span>
               ))}
@@ -664,13 +664,13 @@ function UploadPage() {
             </div>
             <div className="flex gap-2 shrink-0">
               <Button variant="outline" size="sm" onClick={() => rawFileData ? setStage("mapping") : resetAll()}>
-                ← Back
+                â† Back
               </Button>
               <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
                 {submit.isPending
                   ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                   : <CheckCircle2 className="w-4 h-4 mr-1" />}
-                {submit.isPending ? "Importing…" : `Import ${rows.length} transactions`}
+                {submit.isPending ? "Importingâ€¦" : `Import ${rows.length} transactions`}
               </Button>
             </div>
           </div>
@@ -696,10 +696,10 @@ function UploadPage() {
                         {r.action}
                       </span>
                     </TableCell>
-                    <TableCell className="font-medium text-foreground">{r.symbol ?? "—"}</TableCell>
+                    <TableCell className="font-medium text-foreground">{r.symbol ?? "â€”"}</TableCell>
                     <TableCell className="max-w-[220px] truncate text-xs">{r.description ?? ""}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.quantity || "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{r.price ? formatMoney(r.price) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.quantity || "â€”"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.price ? formatMoney(r.price) : "â€”"}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(r.amount)}</TableCell>
                   </TableRow>
                 ))}
@@ -716,3 +716,4 @@ function UploadPage() {
     </div>
   );
 }
+

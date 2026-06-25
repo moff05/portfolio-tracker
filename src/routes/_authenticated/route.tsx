@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
+﻿import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
 import { LineChart, Briefcase, Receipt, FileText, BarChart3, Upload, TrendingUp, Scissors, DollarSign, SlidersHorizontal, ChevronDown, BookOpen, BookMarked, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatPanel } from "@/components/ChatPanel";
@@ -201,3 +201,4 @@ function AppLayout() {
     </AccountFilterProvider>
   );
 }
+

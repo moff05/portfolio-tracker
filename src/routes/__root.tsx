@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -73,8 +73,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Portfolio Tracker" },
-      { name: "description", content: "Investment portfolio tracker" },
+      { title: "Portfolio Manager" },
+      { name: "description", content: "Investment Portfolio Manager" },
     ],
     links: [
       {
@@ -113,3 +113,4 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+

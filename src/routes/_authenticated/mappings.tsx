@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { CUSIP_SEED, buildResolver, isCusip } from "@/lib/symbol-resolver";
 
 export const Route = createFileRoute("/_authenticated/mappings")({
-  head: () => ({ meta: [{ title: "Symbol Mappings — Portfolio Tracker" }] }),
+  head: () => ({ meta: [{ title: "Symbol Mappings â€” Portfolio Manager" }] }),
   component: MappingsPage,
 });
 
@@ -146,7 +146,7 @@ function MappingsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Symbol Mappings</h1>
           <p className="text-sm text-muted-foreground">
             Fifth Third statements use CUSIPs instead of tickers. Map each CUSIP to its ticker so
-            live prices and S&amp;P comparisons work. {rows.length} symbols • {unmappedCount} unmapped.
+            live prices and S&amp;P comparisons work. {rows.length} symbols â€¢ {unmappedCount} unmapped.
           </p>
         </div>
         {suggestable > 0 && (

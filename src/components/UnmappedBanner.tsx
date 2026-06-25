@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+﻿import { Link } from "@tanstack/react-router";
 import { AlertTriangle, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect } from "react";
@@ -32,7 +32,7 @@ export function UnmappedBanner({ unmapped }: { unmapped: string[] }) {
           Some securities in the statement are identified by an internal security number rather than
           a stock ticker (e.g. AAPL). Without a ticker, live prices and S&P comparisons won't load
           for those positions.{" "}
-          <Link to="/mappings" className="underline font-medium">Add ticker mappings →</Link>
+          <Link to="/mappings" className="underline font-medium">Add ticker mappings â†’</Link>
         </p>
         <div className="mt-2 flex flex-wrap gap-1">
           {unmapped.slice(0, 12).map((c) => (
@@ -55,3 +55,4 @@ export function UnmappedBanner({ unmapped }: { unmapped: string[] }) {
     </Card>
   );
 }
+
