@@ -132,13 +132,22 @@ app.whenReady().then(async () => {
   const splash = createSplashWindow();
   createWindow();
 
+  // Start updater immediately — before page load — so a broken page can't
+  // prevent the auto-updater from finding and downloading a fix.
+  if (!isDev) setupAutoUpdater();
+
   try {
     await startServer();
     mainWindow.loadURL(`http://127.0.0.1:${PORT}/dashboard`);
     mainWindow.once('ready-to-show', () => {
       mainWindow.show();
       splash.destroy();
-      if (!isDev) setupAutoUpdater();
+    });
+    // If the page fails to load, still show the window so the user isn't
+    // stuck on the splash screen with no way to close the app.
+    mainWindow.webContents.on('did-fail-load', () => {
+      splash.destroy();
+      mainWindow.show();
     });
   } catch (err) {
     console.error('[main] Failed to start server:', err);
