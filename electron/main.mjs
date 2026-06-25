@@ -148,10 +148,15 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (serverProc) serverProc.kill();
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => {
-  if (serverProc) serverProc.kill();
+app.on('before-quit', (e) => {
+  if (!serverProc) return;
+  e.preventDefault();
+  serverProc.on('exit', () => {
+    serverProc = null;
+    app.quit();
+  });
+  serverProc.kill();
 });
