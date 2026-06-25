@@ -1,6 +1,6 @@
 {
   "name": "portfolio-tracker",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Self-hosted portfolio tracking app — holdings, performance, and P&L from broker exports",
   "author": "Nicholas Moffett",
   "private": true,
@@ -28,8 +28,7 @@
       "electron/**",
       "package.json"
     ],
-    "asar": true,
-    "asarUnpack": ["dist/server/**", "dist/client/**", "electron/**"],
+    "asar": false,
     "win": {
       "target": "nsis",
       "artifactName": "Portfolio-Tracker-Setup-${version}.${ext}"
