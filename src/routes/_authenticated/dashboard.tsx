@@ -596,7 +596,7 @@ function Dashboard() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1">Portfolio Value</p>
           <p className="text-4xl font-bold tracking-tight tabular-nums text-foreground">
-            {isLoading ? “—“ : formatMoney(snapshot.totalMarketValue)}
+            {isLoading ? "—" : formatMoney(snapshot.totalMarketValue)}
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-2 text-[15px]">
             <span>
