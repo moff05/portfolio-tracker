@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import type { Transaction } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: “Dashboard — Portfolio Manager” }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Portfolio Manager" }] }),
   component: Dashboard,
 });
 
