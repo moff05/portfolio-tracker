@@ -11,7 +11,7 @@ import { Info } from "lucide-react";
 import { SortHead, useSortable, sortRows } from "@/components/SortHead";
 
 export const Route = createFileRoute("/_authenticated/rebalancing")({
-  head: () => ({ meta: [{ title: "Rebalancing â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Rebalancing — Portfolio Manager" }] }),
   component: RebalancingPage,
 });
 
@@ -24,7 +24,7 @@ function generateObservations(holdings: any[]): Observation[] {
   const sorted = [...holdings].sort((a, b) => b.weightPct - a.weightPct);
   const n = sorted.length;
 
-  // Single-name concentration â€” flag anything > 5%
+  // Single-name concentration — flag anything > 5%
   const large = sorted.filter((h) => h.weightPct > 5);
   for (const h of large) {
     const rank = sorted.indexOf(h) + 1;
@@ -59,7 +59,7 @@ function generateObservations(holdings: any[]): Observation[] {
     }
   }
 
-  // Sector concentration â€” flag anything > 30%
+  // Sector concentration — flag anything > 30%
   const sectorTotals: Record<string, number> = {};
   for (const h of holdings) {
     const s = getSector(h.symbol);
@@ -70,7 +70,7 @@ function generateObservations(holdings: any[]): Observation[] {
     if (pct > 30) {
       obs.push({
         level: pct > 45 ? "notable" : "info",
-        text: `${sector} represents ${pct.toFixed(1)}% of the portfolio â€” the largest sector exposure.`,
+        text: `${sector} represents ${pct.toFixed(1)}% of the portfolio — the largest sector exposure.`,
       });
       break; // only flag the top sector if it's large; rest covered by the sector chart
     }
@@ -89,7 +89,7 @@ function generateObservations(holdings: any[]): Observation[] {
 
   // Low position count
   if (n > 0 && n < 8) {
-    obs.push({ level: "notable", text: `Portfolio holds ${n} distinct position${n === 1 ? "" : "s"} â€” a relatively concentrated book.` });
+    obs.push({ level: "notable", text: `Portfolio holds ${n} distinct position${n === 1 ? "" : "s"} — a relatively concentrated book.` });
   }
 
   return obs;
@@ -146,12 +146,12 @@ function RebalancingPage() {
   const top10Pct = sorted.slice(0, 10).reduce((s, h) => s + h.weightPct, 0);
   const largestPct = sorted[0]?.weightPct ?? 0;
   const topSectorPct = sectorTotals[0]?.[1] ?? 0;
-  const topSectorName = sectorTotals[0]?.[0] ?? "â€”";
+  const topSectorName = sectorTotals[0]?.[0] ?? "—";
 
   if (isLoading) {
     return (
       <div className="p-6 lg:p-8 text-sm text-muted-foreground animate-pulse">
-        Loading portfolioâ€¦
+        Loading portfolio…
       </div>
     );
   }
@@ -224,10 +224,10 @@ function RebalancingPage() {
                       {Number(t.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                     </td>
                     <td className="py-1.5 tabular-nums text-right">
-                      {Number(t.price ?? 0) > 0 ? `$${Number(t.price).toFixed(2)}` : "â€”"}
+                      {Number(t.price ?? 0) > 0 ? `$${Number(t.price).toFixed(2)}` : "—"}
                     </td>
                     <td className="py-1.5 tabular-nums text-right font-medium text-foreground">
-                      {Number(t.amount ?? 0) !== 0 ? `$${Math.abs(Number(t.amount)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "â€”"}
+                      {Number(t.amount ?? 0) !== 0 ? `$${Math.abs(Number(t.amount)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
                     </td>
                   </tr>
                 ))}
@@ -260,10 +260,10 @@ function RebalancingPage() {
                       {Number(t.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                     </td>
                     <td className="py-1.5 tabular-nums text-right">
-                      {Number(t.price ?? 0) > 0 ? `$${Number(t.price).toFixed(2)}` : "â€”"}
+                      {Number(t.price ?? 0) > 0 ? `$${Number(t.price).toFixed(2)}` : "—"}
                     </td>
                     <td className="py-1.5 tabular-nums text-right font-medium text-gain">
-                      {Number(t.amount ?? 0) !== 0 ? `$${Math.abs(Number(t.amount)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "â€”"}
+                      {Number(t.amount ?? 0) !== 0 ? `$${Math.abs(Number(t.amount)).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
                     </td>
                   </tr>
                 ))}
@@ -340,7 +340,7 @@ function RebalancingPage() {
           </ul>
           <div className="flex items-center gap-1.5 mt-4 pt-3 border-t text-[11px]">
             <Info className="w-3 h-3 shrink-0" />
-            These are factual observations only â€” no action is implied or recommended.
+            These are factual observations only — no action is implied or recommended.
           </div>
         </Card>
       )}
@@ -379,7 +379,7 @@ function RebalancingPage() {
                   <TableCell className="text-right tabular-nums">
                     {h.spxWeight > 0
                       ? <span className="text-xs text-muted-foreground">{h.spxWeight.toFixed(1)}%</span>
-                      : <span className="text-xs text-muted-foreground">â€”</span>}
+                      : <span className="text-xs text-muted-foreground">—</span>}
                   </TableCell>
                 </TableRow>
             ))}

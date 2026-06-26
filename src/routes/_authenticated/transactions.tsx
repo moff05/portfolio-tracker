@@ -29,7 +29,7 @@ import type { LotDisposal } from "@/lib/tax-lots";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/transactions")({
-  head: () => ({ meta: [{ title: "Transactions â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Transactions — Portfolio Manager" }] }),
   component: TransactionsPage,
 });
 
@@ -116,7 +116,7 @@ function TransactionsPage() {
     return buildLots(q.data as Transaction[], "FIFO", today);
   }, [q.data, today]);
 
-  // Map: buyTxnId â†’ lot seq number (only for still-open lots)
+  // Map: buyTxnId → lot seq number (only for still-open lots)
   const openLotByBuyId = useMemo(() => {
     const map = new Map<string, number>();
     for (const lots of Object.values(holdingsBySymbol)) {
@@ -130,7 +130,7 @@ function TransactionsPage() {
     return map;
   }, [holdingsBySymbol]);
 
-  // Map: sellTxnId â†’ disposals[]
+  // Map: sellTxnId → disposals[]
   const disposalsBySellId = useMemo(() => {
     const map = new Map<string, LotDisposal[]>();
     for (const d of disposals) {
@@ -237,7 +237,7 @@ function TransactionsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search symbol or descriptionâ€¦"
+            placeholder="Search symbol or description…"
             className="pl-8 pr-8 h-8 text-sm"
           />
           {search && (
@@ -314,7 +314,7 @@ function TransactionsPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium text-foreground">{t.symbol ?? "â€”"}</TableCell>
+                    <TableCell className="font-medium text-foreground">{t.symbol ?? "—"}</TableCell>
                     <TableCell className="max-w-[240px] truncate">{t.description ?? ""}</TableCell>
                     <TableCell className="text-right tabular-nums">{Number(t.quantity ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(Number(t.price ?? 0))}</TableCell>

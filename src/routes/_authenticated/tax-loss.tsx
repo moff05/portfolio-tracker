@@ -10,7 +10,7 @@ import { formatMoney } from "@/lib/portfolio";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/tax-loss")({
-  head: () => ({ meta: [{ title: "Tax-Loss Harvesting â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Tax-Loss Harvesting — Portfolio Manager" }] }),
   component: TaxLossPage,
 });
 
@@ -136,7 +136,7 @@ function TaxLossPage() {
             Total Harvestable Loss
           </p>
           <p className="text-2xl font-bold tabular-nums text-loss">
-            {isLoading ? "â€”" : formatMoney(totalLoss)}
+            {isLoading ? "—" : formatMoney(totalLoss)}
           </p>
           <p className="text-xs mt-1">{candidates.length} positions</p>
         </Card>
@@ -145,25 +145,25 @@ function TaxLossPage() {
             Long-Term Loss
           </p>
           <p className="text-2xl font-bold tabular-nums text-loss">
-            {isLoading ? "â€”" : formatMoney(totalLtLoss)}
+            {isLoading ? "—" : formatMoney(totalLtLoss)}
           </p>
-          <p className="text-xs mt-1 text-gain">Est. saving: {isLoading ? "â€”" : formatMoney(ltSavings)} @ 20%</p>
+          <p className="text-xs mt-1 text-gain">Est. saving: {isLoading ? "—" : formatMoney(ltSavings)} @ 20%</p>
         </Card>
         <Card className="p-5">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1.5">
             Short-Term Loss
           </p>
           <p className="text-2xl font-bold tabular-nums text-loss">
-            {isLoading ? "â€”" : formatMoney(totalStLoss)}
+            {isLoading ? "—" : formatMoney(totalStLoss)}
           </p>
-          <p className="text-xs mt-1 text-gain">Est. saving: {isLoading ? "â€”" : formatMoney(stSavings)} @ 37%</p>
+          <p className="text-xs mt-1 text-gain">Est. saving: {isLoading ? "—" : formatMoney(stSavings)} @ 37%</p>
         </Card>
         <Card className="p-5">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1.5">
             Total Est. Tax Savings
           </p>
           <p className="text-2xl font-bold tabular-nums text-gain">
-            {isLoading ? "â€”" : formatMoney(totalSavings)}
+            {isLoading ? "—" : formatMoney(totalSavings)}
           </p>
           <p className="text-xs mt-1">blended LT/ST rate</p>
         </Card>
@@ -221,10 +221,10 @@ function TaxLossPage() {
                         {formatMoney(h.unrealizedPL)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-loss">
-                        {h.ltLoss < 0 ? formatMoney(h.ltLoss) : <span className="text-muted-foreground/40">â€”</span>}
+                        {h.ltLoss < 0 ? formatMoney(h.ltLoss) : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-loss">
-                        {h.stLoss < 0 ? formatMoney(h.stLoss) : <span className="text-muted-foreground/40">â€”</span>}
+                        {h.stLoss < 0 ? formatMoney(h.stLoss) : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-loss">
                         {h.unrealizedPLPct.toFixed(2)}%
@@ -271,9 +271,9 @@ function TaxLossPage() {
                                       </td>
                                       <td className="px-3 py-1.5 tabular-nums text-right">{formatMoney(lot.costPerShare)}</td>
                                       <td className="px-3 py-1.5 tabular-nums text-right">{formatMoney(lot.totalCost)}</td>
-                                      <td className="px-3 py-1.5 tabular-nums text-right">{h.marketPrice > 0 ? formatMoney(mv) : "â€”"}</td>
+                                      <td className="px-3 py-1.5 tabular-nums text-right">{h.marketPrice > 0 ? formatMoney(mv) : "—"}</td>
                                       <td className={cn("px-3 py-1.5 tabular-nums text-right font-medium", gain >= 0 ? "text-gain" : "text-loss")}>
-                                        {h.marketPrice > 0 ? formatMoney(gain) : "â€”"}
+                                        {h.marketPrice > 0 ? formatMoney(gain) : "—"}
                                       </td>
                                       <td className="px-3 py-1.5">
                                         <span className={cn(
@@ -301,7 +301,7 @@ function TaxLossPage() {
       )}
 
       <div className="text-xs space-y-1 text-muted-foreground/70">
-        <p>* {method} lot matching used to classify losses as long-term (&gt;1 year) or short-term (â‰¤1 year). Toggle FIFO/HIFO above to see how lot selection method affects the breakdown.</p>
+        <p>* {method} lot matching used to classify losses as long-term (&gt;1 year) or short-term (≤1 year). Toggle FIFO/HIFO above to see how lot selection method affects the breakdown.</p>
         <p>* Wash sale window: buys on or after {thirtyDaysAgo}. Selling and repurchasing within 31 days would disallow the loss.</p>
         <p>* Estimated savings: LT losses × 20% rate, ST losses × 37% rate. Actual rates depend on your total income and gain/loss picture for the year.</p>
         <p>* Not tax advice. Consult a tax advisor before executing any harvesting strategy.</p>

@@ -29,7 +29,7 @@ const PALETTE = [
   "#8b5cf6", "#06b6d4", "#ec4899", "#f97316",
 ];
 
-// Fixed colors per GICS sector â€” vibrant, visually distinct, consistent across all charts
+// Fixed colors per GICS sector — vibrant, visually distinct, consistent across all charts
 const SECTOR_COLORS: Record<string, string> = {
   "Technology":     "#3b82f6", // blue-500
   "Financials":     "#10b981", // emerald-500
@@ -143,7 +143,7 @@ function PieSliceLabel({ cx, cy, midAngle, outerRadius, name, portfolioPct }: an
   );
 }
 
-// Tooltip: "Jun 24, 2026" â€” unambiguous, shows the actual day
+// Tooltip: "Jun 24, 2026" — unambiguous, shows the actual day
 function fmtNavDate(iso: string) {
   return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
@@ -261,7 +261,7 @@ function computePeriodActivity(
   const startSnap = buildSnapshot(txns, dayBefore, {});
 
   // Use NAV values directly as the period boundaries.
-  // snapshot.cash is accounting cash (contributions âˆ’ purchases) and goes deeply negative
+  // snapshot.cash is accounting cash (contributions − purchases) and goes deeply negative
   // when securities are transferred in-kind with no offsetting CONTRIBUTION transaction.
   // Adding cash here would produce a wildly wrong ending balance.
   const startingBalance = startNavMV;
@@ -398,7 +398,7 @@ function Dashboard() {
   const today = localDateStr();
   const [asOf, setAsOf] = useState(today);
 
-  // Clamp asOf to today on the client â€” guards against SSR computing a UTC date
+  // Clamp asOf to today on the client — guards against SSR computing a UTC date
   // that's ahead of the user's local date (e.g. server UTC = Jun 26, local CDT = Jun 24)
   useEffect(() => {
     const cap = localDateStr();
@@ -421,7 +421,7 @@ function Dashboard() {
   });
   const navSeries = navQ.data ?? [];
 
-  // Historical prices at treemap period start â€” relative to asOf, not today
+  // Historical prices at treemap period start — relative to asOf, not today
   const periodStartDate = useMemo(() => {
     if (treemapPeriod === "Max") return null;
     return getNavCutoff(treemapPeriod, asOf);
@@ -458,7 +458,7 @@ function Dashboard() {
       return { name: h.symbol, value: h.marketValue, pct, pl };
     }), [snapshot.holdings, periodStartPrices, treemapPeriod]);
 
-  // â”€â”€ Equity sector breakdown pie â€” 100% = direct equity holdings only â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Equity sector breakdown pie — 100% = direct equity holdings only â”€â”€â”€â”€â”€â”€
   const equityBreakdownData = useMemo(() => {
     const equityHoldings = snapshot.holdings.filter((h) => getAssetClass(h.symbol) === "Equities");
     const totalEquityMV = equityHoldings.reduce((s, h) => s + h.marketValue, 0);
@@ -569,19 +569,19 @@ function Dashboard() {
     return resampleNavToMonthly(navData);
   }, [navData, navPeriod]);
 
-  // X-axis tick format â€” avoids "Jun 26" ambiguity (looks like June 26th but means June 2026)
+  // X-axis tick format — avoids "Jun 26" ambiguity (looks like June 26th but means June 2026)
   const navTickFormatter = useMemo(() => {
     if (navPeriod === "1D" || navPeriod === "1W") {
-      // "Jun 24" â€” month + day, unambiguously a date
+      // "Jun 24" — month + day, unambiguously a date
       return (iso: string) => new Date(iso + "T00:00:00Z")
         .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
     }
     if (navPeriod === "6M" || navPeriod === "YTD") {
-      // "Jun" â€” just month name, no year; avoids "Jun 26" confusion for single-year spans
+      // "Jun" — just month name, no year; avoids "Jun 26" confusion for single-year spans
       return (iso: string) => new Date(iso + "T00:00:00Z")
         .toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
     }
-    // 1Y, 3Y, 5Y, Max â€” "Jun 2026": full 4-digit year, cannot be confused with a day
+    // 1Y, 3Y, 5Y, Max — "Jun 2026": full 4-digit year, cannot be confused with a day
     return (iso: string) => new Date(iso + "T00:00:00Z")
       .toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
   }, [navPeriod]);
@@ -614,7 +614,7 @@ function Dashboard() {
 
       {/* â”€â”€ NAV chart (2/3) + Partners Capital Snapshot (1/3) â”€â”€ */}
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        {/* NAV chart â€” period toggle lives inside this card */}
+        {/* NAV chart — period toggle lives inside this card */}
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Portfolio Value Over Time</h2>
@@ -644,13 +644,13 @@ function Dashboard() {
           )}
         </Card>
 
-        {/* Partners Capital Snapshot â€” own period toggle */}
+        {/* Partners Capital Snapshot — own period toggle */}
         <Card className="p-5">
           <h2 className="text-sm font-semibold text-foreground mb-3">Capital Snapshot</h2>
           <PeriodToggle value={snapshotPeriod} onChange={setSnapshotPeriod} compact />
           <div className="mt-3">
             {isLoading ? (
-              <div className="text-xs text-muted-foreground animate-pulse">Loadingâ€¦</div>
+              <div className="text-xs text-muted-foreground animate-pulse">Loading…</div>
             ) : (
               <CapitalSnapshot
                 txns={txns}
@@ -664,7 +664,7 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* â”€â”€ Treemap â€” own period toggle in header â”€â”€ */}
+      {/* â”€â”€ Treemap — own period toggle in header â”€â”€ */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
@@ -683,19 +683,19 @@ function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-2 mt-2 px-0.5">
-          <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">â‰¤ âˆ’10%</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">≤ −10%</span>
           <div className="flex-1 h-1.5 rounded-l-full"
             style={{ background: "linear-gradient(to right, #b91c1c, #ef4444, #fca5a5, #fee2e2)" }} />
           <span className="text-[10px] text-muted-foreground/50 shrink-0 px-0.5">0</span>
           <div className="flex-1 h-1.5 rounded-r-full"
             style={{ background: "linear-gradient(to right, #d1fae5, #6ee7b7, #10b981, #047857)" }} />
-          <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">â‰¥ +10%</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">≥ +10%</span>
         </div>
       </div>
 
       {/* â”€â”€ Asset Class Allocation Pie + Asset Class bar â”€â”€ */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Equity sector breakdown pie â€” 100% = direct equity holdings */}
+        {/* Equity sector breakdown pie — 100% = direct equity holdings */}
         <Card className="p-5">
           <div className="mb-2">
             <h2 className="text-sm font-semibold text-foreground">Equity Sector Allocation</h2>
@@ -785,7 +785,7 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* â”€â”€ Sector vs SPY/QQQ â€” vertical bar chart, full width by default â”€â”€ */}
+      {/* â”€â”€ Sector vs SPY/QQQ — vertical bar chart, full width by default â”€â”€ */}
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div>

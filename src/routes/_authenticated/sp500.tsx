@@ -16,7 +16,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/sp500")({
-  head: () => ({ meta: [{ title: "Index Compare â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Index Compare — Portfolio Manager" }] }),
   component: SP500Compare,
 });
 
@@ -62,7 +62,7 @@ function SP500Compare() {
     return map;
   }, [snapshot.holdings]);
 
-  // Chart data â€” include all sectors that appear in either index
+  // Chart data — include all sectors that appear in either index
   const sectorChartData = useMemo(() => {
     const allSectors = new Set([
       ...Object.keys(portfolioSectorWeights),
@@ -88,7 +88,7 @@ function SP500Compare() {
     return Math.ceil(max / 5) * 5;
   }, [sectorChartData]);
 
-  // Grouped holdings: sector â†’ stocks, sorted by portfolio weight
+  // Grouped holdings: sector → stocks, sorted by portfolio weight
   const groupedBySector = useMemo(() => {
     const map: Record<string, { symbol: string; weightPct: number; spyWeight: number; qqqWeight: number }[]> = {};
     for (const h of snapshot.holdings) {
@@ -128,7 +128,7 @@ function SP500Compare() {
 
       <UnmappedBanner unmapped={unmapped} />
 
-      {/* Sector grouped bar â€” matches dashboard style */}
+      {/* Sector grouped bar — matches dashboard style */}
       {sectorChartData.length > 0 && (
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
@@ -191,7 +191,7 @@ function SP500Compare() {
         </Card>
       )}
 
-      {/* Holdings by Sector â€” collapsible */}
+      {/* Holdings by Sector — collapsible */}
       <Card>
         <div className="px-5 py-4 border-b">
           <h2 className="font-semibold text-foreground">Holdings by Sector</h2>
@@ -251,12 +251,12 @@ function SP500Compare() {
                     <TableCell className="text-right tabular-nums py-3">
                       {spyPct > 0
                         ? `${spyPct.toFixed(2)}%`
-                        : <span className="text-muted-foreground/40">â€”</span>}
+                        : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums py-3">
                       {qqqPct > 0
                         ? `${qqqPct.toFixed(2)}%`
-                        : <span className="text-muted-foreground/40">â€”</span>}
+                        : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                     <TableCell className={cn(
                       "text-right tabular-nums py-3",
@@ -264,7 +264,7 @@ function SP500Compare() {
                     )}>
                       {spyDiff != null
                         ? `${spyDiff >= 0 ? "+" : ""}${spyDiff.toFixed(2)}%`
-                        : <span className="text-muted-foreground/40">â€”</span>}
+                        : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                     <TableCell className={cn(
                       "text-right tabular-nums pr-5 py-3",
@@ -272,7 +272,7 @@ function SP500Compare() {
                     )}>
                       {qqqDiff != null
                         ? `${qqqDiff >= 0 ? "+" : ""}${qqqDiff.toFixed(2)}%`
-                        : <span className="text-muted-foreground/40">â€”</span>}
+                        : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                   </TableRow>
 
@@ -302,12 +302,12 @@ function SP500Compare() {
                         <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground py-2">
                           {r.spyWeight > 0
                             ? `${r.spyWeight.toFixed(2)}%`
-                            : <span className="text-muted-foreground/30">â€”</span>}
+                            : <span className="text-muted-foreground/30">—</span>}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground py-2">
                           {r.qqqWeight > 0
                             ? `${r.qqqWeight.toFixed(2)}%`
-                            : <span className="text-muted-foreground/30">â€”</span>}
+                            : <span className="text-muted-foreground/30">—</span>}
                         </TableCell>
                         <TableCell className={cn(
                           "text-right tabular-nums text-[12px] py-2",
@@ -315,7 +315,7 @@ function SP500Compare() {
                         )}>
                           {sSpyDiff != null
                             ? `${sSpyDiff >= 0 ? "+" : ""}${sSpyDiff.toFixed(2)}%`
-                            : <span className="text-muted-foreground/30">â€”</span>}
+                            : <span className="text-muted-foreground/30">—</span>}
                         </TableCell>
                         <TableCell className={cn(
                           "text-right tabular-nums text-[12px] pr-5 py-2",
@@ -323,7 +323,7 @@ function SP500Compare() {
                         )}>
                           {sQqqDiff != null
                             ? `${sQqqDiff >= 0 ? "+" : ""}${sQqqDiff.toFixed(2)}%`
-                            : <span className="text-muted-foreground/30">â€”</span>}
+                            : <span className="text-muted-foreground/30">—</span>}
                         </TableCell>
                       </TableRow>
                     );

@@ -12,7 +12,7 @@ import { Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/statement")({
-  head: () => ({ meta: [{ title: "Capital Statement â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Capital Statement — Portfolio Manager" }] }),
   component: Statement,
 });
 
@@ -127,8 +127,8 @@ function Statement() {
   for (let y = currentYear; y >= currentYear - 10; y--) years.push(y);
 
   const periodLabel = start === firstDayOfMonth(startYear, startMonth) && effectiveEnd === endNominal
-    ? `${MONTH_NAMES[startMonth-1]} ${startYear} â€” ${MONTH_NAMES[endMonth-1]} ${endYear}`
-    : `${start} â€” ${effectiveEnd}`;
+    ? `${MONTH_NAMES[startMonth-1]} ${startYear} — ${MONTH_NAMES[endMonth-1]} ${endYear}`
+    : `${start} — ${effectiveEnd}`;
 
   return (
     <div className="p-6 lg:p-8 space-y-6 text-muted-foreground">
@@ -198,10 +198,10 @@ function Statement() {
           <div className="text-xs font-medium uppercase tracking-widest">Statement of Partner's Capital</div>
           <div className="text-xl font-semibold text-foreground mt-2">{periodLabel}</div>
           <div className="text-xs mt-1">
-            {start} â€” {effectiveEnd}{effectiveEnd !== endNominal && " (to-date)"}
+            {start} — {effectiveEnd}{effectiveEnd !== endNominal && " (to-date)"}
           </div>
           {isLoading && (
-            <div className="text-xs mt-2 animate-pulse">Loading pricesâ€¦</div>
+            <div className="text-xs mt-2 animate-pulse">Loading prices…</div>
           )}
         </div>
 

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { Holding } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/_authenticated/holdings")({
-  head: () => ({ meta: [{ title: "Holdings â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Holdings — Portfolio Manager" }] }),
   component: Holdings,
 });
 
@@ -109,13 +109,13 @@ function LotRows({ lots, marketPrice }: { lots: TaxLot[]; marketPrice: number })
                     <td className="px-3 py-1.5 tabular-nums text-right">{formatMoney(lot.costPerShare)}</td>
                     <td className="px-3 py-1.5 tabular-nums text-right">{formatMoney(lot.totalCost)}</td>
                     <td className="px-3 py-1.5 tabular-nums text-right text-foreground">
-                      {marketPrice > 0 ? formatMoney(mv) : <span className="text-muted-foreground/40">â€”</span>}
+                      {marketPrice > 0 ? formatMoney(mv) : <span className="text-muted-foreground/40">—</span>}
                     </td>
                     <td className={cn("px-3 py-1.5 tabular-nums text-right font-medium", gain >= 0 ? "text-gain" : "text-loss")}>
-                      {marketPrice > 0 ? formatMoney(gain) : <span className="text-muted-foreground/40">â€”</span>}
+                      {marketPrice > 0 ? formatMoney(gain) : <span className="text-muted-foreground/40">—</span>}
                     </td>
                     <td className={cn("px-3 py-1.5 tabular-nums text-right", gain >= 0 ? "text-gain" : "text-loss")}>
-                      {marketPrice > 0 ? `${gainPct.toFixed(2)}%` : <span className="text-muted-foreground/40">â€”</span>}
+                      {marketPrice > 0 ? `${gainPct.toFixed(2)}%` : <span className="text-muted-foreground/40">—</span>}
                     </td>
                     <td className="px-3 py-1.5">
                       <span className={cn(
@@ -191,7 +191,7 @@ function Holdings() {
   const top5   = useMemo(() => [...rankedHoldings].sort((a, b) => b.unrealizedPLPct - a.unrealizedPLPct).slice(0, 5), [rankedHoldings]);
   const worst5 = useMemo(() => [...rankedHoldings].sort((a, b) => a.unrealizedPLPct - b.unrealizedPLPct).slice(0, 5), [rankedHoldings]);
 
-  // Scale for progress bars â€” max of each group (minimum 1 to avoid division by zero)
+  // Scale for progress bars — max of each group (minimum 1 to avoid division by zero)
   const maxTopPct   = useMemo(() => Math.max(...top5.map((h) => h.unrealizedPLPct), 1), [top5]);
   const maxWorstPct = useMemo(() => Math.max(...worst5.map((h) => Math.abs(h.unrealizedPLPct)), 1), [worst5]);
 
@@ -223,7 +223,7 @@ function Holdings() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Holdings</h1>
           <p className="text-sm">
-            {isLoading ? "Loadingâ€¦" : `${snapshot.holdings.length} positions`}
+            {isLoading ? "Loading…" : `${snapshot.holdings.length} positions`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -317,7 +317,7 @@ function Holdings() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Total row â€” pinned at top */}
+            {/* Total row — pinned at top */}
             {holdings.length > 0 && (
               <TableRow className="bg-muted/30 font-semibold border-b-2 border-border">
                 <TableCell className="w-8" />
@@ -335,15 +335,15 @@ function Holdings() {
                 </TableCell>
                 <TableCell className="text-right tabular-nums">100.00%</TableCell>
                 <TableCell className="text-right tabular-nums text-foreground">
-                  {totals.weightedBeta != null ? totals.weightedBeta.toFixed(2) : <span className="text-muted-foreground/40">â€”</span>}
+                  {totals.weightedBeta != null ? totals.weightedBeta.toFixed(2) : <span className="text-muted-foreground/40">—</span>}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {totals.portfolioYield != null
                     ? `${(totals.portfolioYield * 100).toFixed(2)}%`
-                    : <span className="text-muted-foreground/40">â€”</span>}
+                    : <span className="text-muted-foreground/40">—</span>}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-gain">
-                  {totals.annualIncome > 0 ? formatMoney(totals.annualIncome) : "â€”"}
+                  {totals.annualIncome > 0 ? formatMoney(totals.annualIncome) : "—"}
                 </TableCell>
               </TableRow>
             )}
@@ -398,15 +398,15 @@ function Holdings() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{h.weightPct.toFixed(2)}%</TableCell>
                     <TableCell className="text-right tabular-nums text-foreground">
-                      {h.beta != null ? h.beta.toFixed(2) : <span className="text-muted-foreground/40">â€”</span>}
+                      {h.beta != null ? h.beta.toFixed(2) : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {h.dividendYield != null
                         ? `${(h.dividendYield * 100).toFixed(2)}%`
-                        : <span className="text-muted-foreground/40">â€”</span>}
+                        : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-gain">
-                      {h.annualDividendIncome > 0 ? formatMoney(h.annualDividendIncome) : <span className="text-muted-foreground/40">â€”</span>}
+                      {h.annualDividendIncome > 0 ? formatMoney(h.annualDividendIncome) : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>
                   </TableRow>
                   {isExpanded && hasLots && (

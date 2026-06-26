@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { Transaction } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/_authenticated/income")({
-  head: () => ({ meta: [{ title: "Income â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Income — Portfolio Manager" }] }),
   component: IncomePage,
 });
 
@@ -60,7 +60,7 @@ function EventRows({ events }: { events: DivEvent[] }) {
                     {e.shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}
                   </td>
                   <td className="px-3 py-1.5 tabular-nums text-right font-medium text-gain">
-                    {e.received > 0 ? formatMoney(e.received) : <span className="text-muted-foreground/40">â€”</span>}
+                    {e.received > 0 ? formatMoney(e.received) : <span className="text-muted-foreground/40">—</span>}
                   </td>
                 </tr>
               ))}
@@ -95,7 +95,7 @@ function IncomePage() {
     queryFn: () =>
       getDividendEvents({ data: { symbols: equitySymbols, startDate: fiveYearsAgo, endDate: today } }),
     enabled: equitySymbols.length > 0 && !isLoading,
-    staleTime: 4 * 60 * 60_000, // 4 hours â€” dividend calendars don't change intraday
+    staleTime: 4 * 60 * 60_000, // 4 hours — dividend calendars don't change intraday
   });
 
   const divEvents = divQ.data ?? {};
@@ -126,7 +126,7 @@ function IncomePage() {
 
   // Totals
   const ttmTotal = positionIncome.reduce((s, p) => s + p.ttmReceived, 0);
-  // Expected annual = trailing yield Ã— current market value for each position (forward estimate)
+  // Expected annual = trailing yield × current market value for each position (forward estimate)
   const expectedAnnual = snapshot.holdings.reduce((s, h) => s + h.annualDividendIncome, 0);
   const dbDividendIncome = snapshot.dividendIncome + snapshot.interestIncome;
 
@@ -153,7 +153,7 @@ function IncomePage() {
             TTM Dividend Income
           </p>
           <p className="text-2xl font-bold tabular-nums text-foreground">
-            {divQ.isLoading || isLoading ? "â€”" : formatMoney(ttmTotal)}
+            {divQ.isLoading || isLoading ? "—" : formatMoney(ttmTotal)}
           </p>
           <p className="text-xs mt-1">trailing 12 months (Yahoo events)</p>
         </Card>
@@ -171,7 +171,7 @@ function IncomePage() {
             Recorded Div + Interest
           </p>
           <p className="text-2xl font-bold tabular-nums text-foreground">
-            {isLoading ? "â€”" : formatMoney(dbDividendIncome)}
+            {isLoading ? "—" : formatMoney(dbDividendIncome)}
           </p>
           <p className="text-xs mt-1">from statement (all-time)</p>
         </Card>
@@ -180,7 +180,7 @@ function IncomePage() {
       {(divQ.isLoading || isLoading) && (
         <div className="flex items-center gap-2 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Fetching dividend history from Yahoo Financeâ€¦
+          Fetching dividend history from Yahoo Finance…
         </div>
       )}
 
@@ -235,15 +235,15 @@ function IncomePage() {
                       <TableCell className="text-right tabular-nums">
                         {p.dividendYield != null
                           ? `${(p.dividendYield * 100).toFixed(2)}%`
-                          : <span className="text-muted-foreground/40">â€”</span>}
+                          : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-gain">
                         {p.annualDividendIncome > 0
                           ? formatMoney(p.annualDividendIncome)
-                          : <span className="text-muted-foreground/40">â€”</span>}
+                          : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-foreground">
-                        {p.ttmReceived > 0 ? formatMoney(p.ttmReceived) : <span className="text-muted-foreground/40">â€”</span>}
+                        {p.ttmReceived > 0 ? formatMoney(p.ttmReceived) : <span className="text-muted-foreground/40">—</span>}
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {p.lastEvent ? (
@@ -252,7 +252,7 @@ function IncomePage() {
                             <span className="text-muted-foreground/60">({formatMoney(p.lastEvent.amount)}/sh)</span>
                           </span>
                         ) : (
-                          <span className="text-muted-foreground/40">â€”</span>
+                          <span className="text-muted-foreground/40">—</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -269,7 +269,7 @@ function IncomePage() {
 
       <p className="text-xs text-muted-foreground/70">
         * Dividend events sourced from Yahoo Finance (ex-dates + per-share amounts). Shares held at each ex-date computed from transaction history.
-        Yahoo may not carry all distributions â€” REITs, foreign ADRs, and special dividends can have gaps. TTM = trailing 12 months.
+        Yahoo may not carry all distributions — REITs, foreign ADRs, and special dividends can have gaps. TTM = trailing 12 months.
       </p>
     </div>
   );

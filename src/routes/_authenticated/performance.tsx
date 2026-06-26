@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/_authenticated/performance")({
-  head: () => ({ meta: [{ title: "Performance â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: "Performance — Portfolio Manager" }] }),
   component: PerformancePage,
 });
 
@@ -117,7 +117,7 @@ function ChartTooltip({ active, payload }: any) {
       <div className="font-medium mb-1 text-foreground">{dateStr ? fmtDate(dateStr) : ""}</div>
       {payload.map((p: any) => (
         <div key={p.dataKey} className="flex items-center gap-2">
-          <span style={{ color: p.color }}>â—</span>
+          <span style={{ color: p.color }}>●</span>
           <span className="text-muted-foreground">{p.name}:</span>
           <span className="font-semibold tabular-nums" style={{ color: p.color }}>
             {fmt(p.value)}
@@ -131,14 +131,14 @@ function ChartTooltip({ active, payload }: any) {
 type BenchSym = "SPY" | "QQQ";
 const BENCH_LABELS: Record<BenchSym, string> = { SPY: "S&P 500", QQQ: "NASDAQ 100" };
 
-/** Collapse chart points to one per month â€” always applied so that multiple sub-period
+/** Collapse chart points to one per month — always applied so that multiple sub-period
  *  boundaries in the same month (e.g. daily in-kind BUYs during a transfer) don't
  *  produce duplicate x-axis labels. */
 function resampleChartPoints(pts: ChartPoint[]): ChartPoint[] {
   if (pts.length < 3) return pts;
   const months = new Map<string, ChartPoint>();
   for (const p of pts) {
-    months.set(p.date.slice(0, 7), p); // YYYY-MM â€” last point in month wins
+    months.set(p.date.slice(0, 7), p); // YYYY-MM — last point in month wins
   }
   const resampled = Array.from(months.values());
   // Ensure the baseline (0%) start point is always included
@@ -257,12 +257,12 @@ type RollupRow = {
   chainedReturn: number; // chain-linked over all sub-periods in the bucket
 };
 
-/** Last calendar day of the quarter containing `iso` (e.g. "2025-11-07" â†’ "2025-12-31"). */
+/** Last calendar day of the quarter containing `iso` (e.g. "2025-11-07" → "2025-12-31"). */
 function quarterEndDate(iso: string): string {
   const y = Number(iso.slice(0, 4));
   const m = Number(iso.slice(5, 7));
   const endMonth = Math.ceil(m / 3) * 3; // 3, 6, 9, or 12
-  // Date.UTC with 0-indexed month: month=endMonth, day=0 â†’ last day of (endMonth)
+  // Date.UTC with 0-indexed month: month=endMonth, day=0 → last day of (endMonth)
   const d = new Date(Date.UTC(y, endMonth, 0));
   return d.toISOString().slice(0, 10);
 }
@@ -275,7 +275,7 @@ function yearEndDate(iso: string): string {
 /**
  * Split sub-periods at calendar boundaries (quarter-ends or year-ends) so that
  * every resulting sub-period lives entirely within one bucket. Uses compound
- * interpolation: partReturn = (1+totalReturn)^frac âˆ’ 1. This ensures
+ * interpolation: partReturn = (1+totalReturn)^frac − 1. This ensures
  * Q-n endValue === Q-(n+1) startValue with no gaps or jumps.
  */
 function splitAtBoundaries(periods: SubPeriod[], getBoundary: (iso: string) => string): SubPeriod[] {
@@ -432,7 +432,7 @@ function SubPeriodsSection({ subPeriods }: { subPeriods: SubPeriod[] }) {
                     {row.externalFlow > 0 ? "+" : ""}{formatMoney(row.externalFlow)}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">â€”</span>
+                  <span className="text-muted-foreground">—</span>
                 )}
               </TableCell>
               <TableCell className="text-right">
@@ -514,13 +514,13 @@ function AttributionSection({ rows }: { rows: AttributionRow[] }) {
               <TableRow key={row.symbol}>
                 <TableCell className="font-medium text-foreground">{row.symbol}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {row.startValue > 0 ? formatMoney(row.startValue) : <span>â€”</span>}
+                  {row.startValue > 0 ? formatMoney(row.startValue) : <span>—</span>}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {row.netInvested > 0 ? formatMoney(row.netInvested) : <span>â€”</span>}
+                  {row.netInvested > 0 ? formatMoney(row.netInvested) : <span>—</span>}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {row.endValue > 0 ? formatMoney(row.endValue) : <span>â€”</span>}
+                  {row.endValue > 0 ? formatMoney(row.endValue) : <span>—</span>}
                 </TableCell>
                 <TableCell className={cn("text-right tabular-nums font-medium", pos ? "text-gain" : "text-loss")}>
                   {pos ? "+" : ""}{formatMoney(row.dollarsGained)}
@@ -532,7 +532,7 @@ function AttributionSection({ rows }: { rows: AttributionRow[] }) {
                 )}>
                   {row.startValue > 0 || row.netInvested > 0
                     ? <>{fmt(row.positionReturn)}{row.startValue === 0 && <span className="text-muted-foreground font-normal text-[10px] ml-0.5">roi</span>}</>
-                    : "â€”"}
+                    : "—"}
                 </TableCell>
                 <TableCell className={cn("text-right tabular-nums font-semibold", pos ? "text-gain" : "text-loss")}>
                   {fmt(row.contribution)}
@@ -629,7 +629,7 @@ function PerformancePage() {
       {loading && (
         <div className="flex items-center gap-2 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Fetching historical prices â€” this may take a moment on first load.
+          Fetching historical prices — this may take a moment on first load.
         </div>
       )}
 
@@ -644,7 +644,7 @@ function PerformancePage() {
             </Card>
 
             <Card className="p-5 min-w-0">
-              <KpiLabel tip={"Time-weighted return per year.\nFormula: (1 + TWR)^(365/days) âˆ’ 1\nContributions don't count as gains."}>Ann. Return</KpiLabel>
+              <KpiLabel tip={"Time-weighted return per year.\nFormula: (1 + TWR)^(365/days) − 1\nContributions don't count as gains."}>Ann. Return</KpiLabel>
               {result.totalDays >= 365 ? (
                 <>
                   <div className={numCls(fmt(result.twrAnnualized), result.twrAnnualized >= 0 ? "text-gain" : "text-loss")}>
@@ -654,19 +654,19 @@ function PerformancePage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">â€”</div>
+                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">—</div>
                   <div className="text-xs mt-1">period under 1 year</div>
                 </>
               )}
             </Card>
 
             <Card className="p-5 min-w-0">
-              <KpiLabel tip={"Total return over the period.\nFormula: âˆ(1 + sub-period return) âˆ’ 1\nContributions don't count as gains."}>Cum. Return</KpiLabel>
+              <KpiLabel tip={"Total return over the period.\nFormula: ∏(1 + sub-period return) − 1\nContributions don't count as gains."}>Cum. Return</KpiLabel>
               <div className={numCls(fmt(result.twr), result.twr >= 0 ? "text-gain" : "text-loss")}>
                 {fmt(result.twr)}
               </div>
               <div className="text-xs mt-1 truncate text-muted-foreground">
-                {fmtDate(result.startDate)} â†’ {fmtDate(result.endDate)}
+                {fmtDate(result.startDate)} → {fmtDate(result.endDate)}
               </div>
             </Card>
 
@@ -685,15 +685,15 @@ function PerformancePage() {
                     <>
                       <KpiLabel tip={"How much the portfolio moves relative to the benchmark.\nÎ² = 1: moves in lockstep; Î² > 1: amplifies market swings; Î² < 1: dampens them."}>Portfolio Beta</KpiLabel>
                       <div className="text-2xl font-bold tabular-nums leading-tight text-foreground">{beta.toFixed(2)}</div>
-                      <div className="text-xs mt-1 text-muted-foreground">vs. {benchLabel} â€” {desc}</div>
+                      <div className="text-xs mt-1 text-muted-foreground">vs. {benchLabel} — {desc}</div>
                     </>
                   );
                 }
                 return (
                   <>
                     <KpiLabel tip={"How much the portfolio moves relative to the benchmark.\nÎ² = 1: moves in lockstep; Î² > 1: amplifies market swings; Î² < 1: dampens them."}>Portfolio Beta</KpiLabel>
-                    <div className="text-2xl font-bold tracking-tight text-muted-foreground">â€”</div>
-                    <div className="text-xs mt-1">needs â‰¥ 4 sub-periods</div>
+                    <div className="text-2xl font-bold tracking-tight text-muted-foreground">—</div>
+                    <div className="text-xs mt-1">needs ≥ 4 sub-periods</div>
                   </>
                 );
               })()}
@@ -713,7 +713,7 @@ function PerformancePage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">â€”</div>
+                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">—</div>
                   <div className="text-xs mt-1">insufficient cash flows</div>
                 </>
               )}
@@ -730,7 +730,7 @@ function PerformancePage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">â€”</div>
+                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">—</div>
                   <div className="text-xs mt-1">no starting value</div>
                 </>
               )}
@@ -747,8 +747,8 @@ function PerformancePage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">â€”</div>
-                  <div className="text-xs mt-1">needs â‰¥ 4 sub-periods</div>
+                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">—</div>
+                  <div className="text-xs mt-1">needs ≥ 4 sub-periods</div>
                 </>
               )}
             </Card>
@@ -766,7 +766,7 @@ function PerformancePage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">â€”</div>
+                  <div className="text-2xl font-bold tracking-tight text-muted-foreground">—</div>
                   <div className="text-xs mt-1">requires volatility</div>
                 </>
               )}

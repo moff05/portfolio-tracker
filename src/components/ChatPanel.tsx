@@ -236,7 +236,7 @@ export function ChatPanel() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 88) + "px";
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything about your portfolioâ€¦"
+                placeholder="Ask anything about your portfolio…"
                 disabled={isLoading}
                 rows={1}
                 style={{ height: "22px" }}
