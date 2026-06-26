@@ -132,7 +132,7 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.checkForUpdates();
-  setInterval(() => autoUpdater.checkForUpdates(), 60 * 60 * 1000);
+  setInterval(() => autoUpdater.checkForUpdates(), 5 * 60 * 1000);
 }
 
 app.whenReady().then(async () => {
