@@ -162,9 +162,9 @@ function IncomePage() {
             Expected Annual Income
           </p>
           <p className="text-2xl font-bold tabular-nums text-gain">
-            {isLoading ? "â€”" : formatMoney(expectedAnnual)}
+            {isLoading ? “—“ : formatMoney(expectedAnnual)}
           </p>
-          <p className="text-xs mt-1">trailing yield Ã— current market value</p>
+          <p className="text-xs mt-1">trailing yield × current market value</p>
         </Card>
         <Card className="p-5">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1.5">

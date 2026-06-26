@@ -169,7 +169,7 @@ export function ChatPanel() {
                 </div>
                 <p className="font-medium text-sm mb-1">Ask about your portfolio</p>
                 <p className="text-xs text-muted-foreground mb-5">
-                  Live prices Â· all holdings Â· transaction history
+                  Live prices · all holdings · transaction history
                 </p>
                 <div className="w-full space-y-2">
                   {SUGGESTIONS.map((s) => (
@@ -255,7 +255,7 @@ export function ChatPanel() {
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground/60 mt-1.5 text-center">
-              Enter to send Â· Shift+Enter for new line
+              Enter to send · Shift+Enter for new line
             </p>
           </div>
         </div>

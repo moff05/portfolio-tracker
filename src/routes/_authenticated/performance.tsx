@@ -545,9 +545,9 @@ function AttributionSection({ rows }: { rows: AttributionRow[] }) {
 
       <div className="px-5 py-3 border-t text-xs text-muted-foreground">
         <span className="font-medium text-foreground">Capital Added</span> = new BUYs mid-period (in-kind transfers + cash purchases).{" "}
-        <span className="font-medium text-foreground">$ Gain</span> = End âˆ’ Start âˆ’ Capital Added.{" "}
-        <span className="font-medium text-foreground">roi</span> = gain Ã· capital added (no prior position).{" "}
-        <span className="font-medium text-foreground">% of Gain</span> = this position's $ gain Ã· total portfolio $ gain (gainers sum to &gt;100%, losers reduce it).
+        <span className="font-medium text-foreground">$ Gain</span> = End − Start − Capital Added.{" "}
+        <span className="font-medium text-foreground">roi</span> = gain ÷ capital added (no prior position).{" "}
+        <span className="font-medium text-foreground">% of Gain</span> = this position’s $ gain ÷ total portfolio $ gain (gainers sum to &gt;100%, losers reduce it).
       </div>
     </Card>
   );
@@ -720,7 +720,7 @@ function PerformancePage() {
             </Card>
 
             <Card className="p-5 min-w-0">
-              <KpiLabel tip={"Formula: (end value + distributions) Ã· (start value + contributions)\n1.5Ã— means $1 in â†’ $1.50 out."}>MOIC</KpiLabel>
+              <KpiLabel tip={"Formula: (end value + distributions) ÷ (start value + contributions)\n1.5× means $1 in → $1.50 out."}>MOIC</KpiLabel>
               {result.moic != null ? (
                 <>
                   <div className={cn("text-2xl font-bold tracking-tight tabular-nums", result.moic >= 1 ? "text-gain" : "text-loss")}>
@@ -754,7 +754,7 @@ function PerformancePage() {
             </Card>
 
             <Card className="p-5 min-w-0">
-              <KpiLabel tip={"Formula: (ann. return âˆ’ risk-free rate) Ã· volatility\n>1.0 good Â· >2.0 excellent Â· <0 underperformed cash."}>Sharpe Ratio</KpiLabel>
+              <KpiLabel tip={"Formula: (ann. return − risk-free rate) ÷ volatility\n>1.0 good · >2.0 excellent · <0 underperformed cash."}>Sharpe Ratio</KpiLabel>
               {result.sharpe != null ? (
                 <>
                   <div className={cn("text-2xl font-bold tracking-tight tabular-nums", result.sharpe >= 1 ? "text-gain" : result.sharpe >= 0 ? "text-foreground" : "text-loss")}>

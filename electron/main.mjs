@@ -127,11 +127,11 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-downloaded', () => {
     if (mainWindow) mainWindow.setProgressBar(-1);
-    notify('Update installing…', 'Portfolio Tracker will restart automatically in a few seconds.');
+    notify('Update installing…', 'Portfolio Manager is restarting to apply the update.');
     setTimeout(() => autoUpdater.quitAndInstall(true, true), 4000);
   });
 
-  autoUpdater.checkForUpdatesAndNotify();
+  autoUpdater.checkForUpdates();
   setInterval(() => autoUpdater.checkForUpdatesAndNotify(), 60 * 60 * 1000);
 }
 

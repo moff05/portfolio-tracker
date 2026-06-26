@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import type { Transaction } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard â€” Portfolio Manager" }] }),
+  head: () => ({ meta: [{ title: “Dashboard — Portfolio Manager” }] }),
   component: Dashboard,
 });
 
@@ -369,7 +369,7 @@ function CapitalSnapshot({
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-1">
-        {period} period{since ? <span className="text-muted-foreground/60"> Â· {since}</span> : null}
+        {period} period{since ? <span className="text-muted-foreground/60"> · {since}</span> : null}
       </p>
       <table className="w-full text-xs mt-1">
         <tbody>
@@ -596,7 +596,7 @@ function Dashboard() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-1">Portfolio Value</p>
           <p className="text-4xl font-bold tracking-tight tabular-nums text-foreground">
-            {isLoading ? "â€”" : formatMoney(snapshot.totalMarketValue)}
+            {isLoading ? “—“ : formatMoney(snapshot.totalMarketValue)}
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-2 text-[15px]">
             <span>
@@ -605,7 +605,7 @@ function Dashboard() {
               </span>
               <span className="ml-1 text-muted-foreground">unrealized</span>
             </span>
-            <span className="text-muted-foreground/30">Â·</span>
+            <span className="text-muted-foreground/30">·</span>
             <span className="text-muted-foreground">{snapshot.holdings.length} positions</span>
           </div>
         </div>
@@ -671,7 +671,7 @@ function Dashboard() {
             <h2 className="text-sm font-semibold text-foreground">Unrealized P/L by Position</h2>
             <PeriodToggle value={treemapPeriod} onChange={setTreemapPeriod} compact />
           </div>
-          <span className="text-xs">sized by market value Â· hover for details</span>
+          <span className="text-xs">sized by market value · hover for details</span>
         </div>
         <div className="bg-card rounded-xl border border-border overflow-hidden" style={{ height: 480 }}>
           {treemapData.length === 0 ? <EmptyState height={480} /> : (
@@ -702,7 +702,7 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground mt-0.5">
               {formatMoney(equityBreakdownData.totalEquityMV)} equities
               {snapshot.totalMarketValue > 0 && (
-                <> Â· {((equityBreakdownData.totalEquityMV / snapshot.totalMarketValue) * 100).toFixed(1)}% of portfolio</>
+                <> · {((equityBreakdownData.totalEquityMV / snapshot.totalMarketValue) * 100).toFixed(1)}% of portfolio</>
               )}
             </p>
           </div>
@@ -719,7 +719,7 @@ function Dashboard() {
                   </Pie>
                   <Tooltip
                     formatter={(v: number, name: string) => [
-                      `${formatMoney(v)}  Â·  ${equityBreakdownData.slices.find(s => s.name === name)?.pct.toFixed(1) ?? ""}%`,
+                      `${formatMoney(v)}  ·  ${equityBreakdownData.slices.find(s => s.name === name)?.pct.toFixed(1) ?? ""}%`,
                       sectorLabel(name as string),
                     ]}
                     contentStyle={TOOLTIP_STYLE}
@@ -884,7 +884,7 @@ function EmptyState({ height = 240 }: { height?: number }) {
     <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
       <div className="text-center">
         <PiggyBank className="w-8 h-8 mx-auto mb-2 opacity-20" />
-        No positions yet â€” upload a file to get started.
+        No positions yet — upload a file to get started.
       </div>
     </div>
   );
