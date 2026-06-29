@@ -197,3 +197,5 @@ electron/
 - **Average-cost basis** across all lots (not lot-by-lot)
 - BUY cost uses the statement's total cost figure, not `qty × price` (price can be $0 for funds)
 - Capital statement formula: Ending Capital = Beginning Capital + Contributions − Distributions + Net Income
+
+
