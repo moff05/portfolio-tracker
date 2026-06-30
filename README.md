@@ -54,6 +54,28 @@ A self-hosted investment portfolio tracking app built for a single user. Reads b
 
 ---
 
+## Download
+
+Pre-built installers are available on the [Releases page](https://github.com/moff05/portfolio-manager/releases/latest).
+
+**macOS (Apple Silicon)**
+
+1. Download `Portfolio.Manager-<version>-arm64.dmg`
+2. Open the `.dmg` and drag **Portfolio Manager** to your Applications folder
+3. Launch from Spotlight or Launchpad
+
+> Requires macOS on Apple Silicon (M1 or later). Intel Mac builds are not currently distributed.
+
+**Windows**
+
+1. Download `Portfolio-Manager-Setup-<version>.exe`
+2. Run the installer and follow the prompts
+3. Launch from the Start menu or desktop shortcut
+
+Both platforms receive automatic updates — the app will notify you and install the latest version on next close.
+
+---
+
 ## Stack
 
 | Layer | Choice |
@@ -142,7 +164,7 @@ bun run electron:build
 bun run electron:build
 ```
 
-Drag the `.dmg` to Applications and open. macOS will warn "unidentified developer" since the app isn't Apple-signed — right-click → Open → Open anyway to bypass it.
+Drag the `.dmg` to Applications and open.
 
 No Bun or Node required on the target machine after installation.
 
