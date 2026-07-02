@@ -22,6 +22,8 @@ jobs:
         run: bun install
 
       - name: Build Vite
+        env:
+          VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
         run: bun run build
 
       - name: Package installer

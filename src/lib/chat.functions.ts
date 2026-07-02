@@ -101,7 +101,10 @@ export const askPortfolio = createServerFn({ method: "POST" })
     z.object({ messages: z.array(messageSchema).min(1).max(40) }).parse(d),
   )
   .handler(async ({ data }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    // Falls back to a build-time key (inlined from VITE_ANTHROPIC_API_KEY at
+    // `bun run build` / `electron:build`) so installed copies work without
+    // each user setting their own OS-level env var.
+    const apiKey = process.env.ANTHROPIC_API_KEY || import.meta.env.VITE_ANTHROPIC_API_KEY;
     if (!apiKey) {
       return {
         content:
