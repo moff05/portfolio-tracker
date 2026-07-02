@@ -4,6 +4,16 @@ import { fileURLToPath } from 'node:url';
 import updaterPkg from 'electron-updater';
 const { autoUpdater } = updaterPkg;
 
+// Generated at build time from GH_UPDATE_TOKEN (scripts/inject-update-token.mjs).
+// Not present in a checkout that hasn't run the build script — fall back to empty
+// so dev/CI-without-the-secret doesn't crash, just runs without update auth.
+let GH_UPDATE_TOKEN = '';
+try {
+  ({ GH_UPDATE_TOKEN } = await import('./update-token.generated.mjs'));
+} catch {
+  // not generated — fine in dev, or a build that forgot the injector step
+}
+
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const isDev = !app.isPackaged;
 const PORT = 3847;
@@ -110,6 +120,11 @@ function notify(title, body) {
 }
 
 function setupAutoUpdater() {
+  // portfolio-manager is a private repo — electron-updater only talks to the
+  // GitHub API (instead of anonymous release-asset URLs, which 404 on private
+  // repos) when GH_TOKEN is set in the environment.
+  if (GH_UPDATE_TOKEN) process.env.GH_TOKEN = GH_UPDATE_TOKEN;
+
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 

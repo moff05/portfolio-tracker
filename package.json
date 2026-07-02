@@ -1,6 +1,6 @@
 {
   "name": "portfolio-tracker",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Self-hosted portfolio tracking app — holdings, performance, and P&L from broker exports",
   "author": "Nicholas Moffett",
   "private": true,
@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "electron:dev": "bun run build && electron .",
-    "electron:build": "bun run build && electron-builder"
+    "electron:build": "bun scripts/inject-update-token.mjs && bun run build && electron-builder"
   },
   "build": {
     "appId": "com.portfoliotracker.app",
@@ -47,7 +47,8 @@
       "provider": "github",
       "owner": "moff05",
       "repo": "portfolio-manager",
-      "releaseType": "release"
+      "releaseType": "release",
+      "private": true
     }
   },
   "dependencies": {

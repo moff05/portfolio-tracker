@@ -26,6 +26,11 @@ jobs:
           VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
         run: bun run build
 
+      - name: Inject update token
+        env:
+          GH_UPDATE_TOKEN: ${{ secrets.GH_UPDATE_TOKEN }}
+        run: bun scripts/inject-update-token.mjs
+
       - name: Package installer
         run: bunx electron-builder --publish never
 
